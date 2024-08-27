@@ -1,0 +1,90 @@
+display(log)
+check(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/reppr7/../model_prior2.txt)
+model is syntactically correct
+data(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/reppr7/data.txt)
+data loaded
+compile(3)
+model compiled
+inits(1,D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/reppr7/inits1.txt)
+this chain contains uninitialized variables
+inits(2,D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/reppr7/inits2.txt)
+this chain contains uninitialized variables
+inits(3,D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/reppr7/inits3.txt)
+this chain contains uninitialized variables
+gen.inits()
+initial values generated, model initialized
+thin.updater(1)
+update(1000)
+set(u)
+set(lam)
+set(b)
+set(a)
+set(gam)
+set(sgm)
+set(sgd)
+set(phx)
+set(deviance)
+dic.set()
+update(2000)
+coda(*,D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/reppr7/coda)
+stats(*)
+
+Node statistics
+	 node	 mean	 sd	 MC error	2.5%	median	97.5%	start	sample
+	a[1]	0.2209	0.02934	0.001175	0.1623	0.2208	0.2786	1001	6000
+	a[2]	-0.1791	0.02867	0.001084	-0.2347	-0.1795	-0.1217	1001	6000
+	a[3]	0.4013	0.02247	7.131E-4	0.3574	0.4012	0.4455	1001	6000
+	a[4]	0.3399	0.03288	0.00148	0.2761	0.3402	0.4044	1001	6000
+	a[5]	-0.1465	0.02836	0.001096	-0.2005	-0.1462	-0.09169	1001	6000
+	a[6]	0.459	0.02915	0.001301	0.4016	0.459	0.5156	1001	6000
+	a[7]	0.5253	0.03487	0.001453	0.4569	0.5254	0.5936	1001	6000
+	a[8]	-0.3798	0.03139	0.001252	-0.4434	-0.3795	-0.3182	1001	6000
+	a[9]	0.3315	0.0281	9.578E-4	0.276	0.3315	0.3866	1001	6000
+	b	0.5356	0.03116	7.919E-4	0.474	0.5352	0.597	1001	6000
+	deviance	8720.0	74.8	2.55	8578.0	8719.0	8869.0	1001	6000
+	gam[1]	0.3957	0.05166	0.002212	0.2982	0.3949	0.4973	1001	6000
+	gam[2]	0.2452	0.05089	0.002135	0.1461	0.2448	0.3479	1001	6000
+	gam[3]	-0.4912	0.0585	0.002552	-0.6134	-0.4884	-0.3858	1001	6000
+	gam[4]	0.05611	0.04048	0.001807	-0.02252	0.05555	0.1362	1001	6000
+	lam[1]	0.9351	0.0356	9.629E-4	0.8659	0.934	1.007	1001	6000
+	lam[2]	0.5727	0.02735	6.125E-4	0.52	0.5723	0.6261	1001	6000
+	lam[3]	0.7413	0.04467	0.001955	0.657	0.7403	0.8332	1001	6000
+	lam[4]	0.8475	0.04586	0.002224	0.7619	0.8464	0.9392	1001	6000
+	lam[5]	0.8543	0.05991	0.003362	0.7464	0.8504	0.9837	1001	6000
+	lam[6]	0.6077	0.04875	0.002196	0.5163	0.6066	0.7098	1001	6000
+	phx[1,1]	1.007	0.09489	0.00446	0.8232	1.004	1.2	1001	6000
+	phx[1,2]	0.3166	0.05707	0.00174	0.2097	0.3155	0.4304	1001	6000
+	phx[2,1]	0.3166	0.05707	0.00174	0.2097	0.3155	0.4304	1001	6000
+	phx[2,2]	0.9488	0.1008	0.005378	0.7543	0.9467	1.152	1001	6000
+	sgd	0.4186	0.04081	0.001071	0.3436	0.4168	0.5042	1001	6000
+	sgm[1]	0.317	0.02936	6.967E-4	0.2641	0.3159	0.3779	1001	6000
+	sgm[2]	0.3729	0.03165	7.002E-4	0.315	0.372	0.4389	1001	6000
+	sgm[3]	0.3219	0.02284	4.207E-4	0.2795	0.3208	0.3699	1001	6000
+	sgm[4]	0.471	0.04414	0.001763	0.3894	0.4696	0.562	1001	6000
+	sgm[5]	0.4862	0.03761	9.625E-4	0.4183	0.4849	0.5648	1001	6000
+	sgm[6]	0.412	0.03464	0.001162	0.3473	0.4106	0.4852	1001	6000
+	sgm[7]	0.5843	0.06081	0.002963	0.4679	0.5832	0.7093	1001	6000
+	sgm[8]	0.5169	0.04768	0.001858	0.4293	0.5151	0.6166	1001	6000
+	sgm[9]	0.5453	0.0399	9.014E-4	0.4722	0.5441	0.6288	1001	6000
+	u[1]	0.09615	0.0566	0.003117	-0.01357	0.09571	0.209	1001	6000
+	u[2]	0.09906	0.05557	0.003005	-0.008849	0.09834	0.211	1001	6000
+	u[3]	0.06084	0.03849	0.001833	-0.01465	0.06015	0.1366	1001	6000
+	u[4]	0.05069	0.05485	0.003101	-0.05726	0.05041	0.158	1001	6000
+	u[5]	0.074	0.046	0.002321	-0.01674	0.07359	0.1637	1001	6000
+	u[6]	0.002813	0.04837	0.002677	-0.09249	0.002253	0.09688	1001	6000
+	u[7]	-0.06448	0.05526	0.002798	-0.1708	-0.06426	0.04453	1001	6000
+	u[8]	-0.04879	0.04963	0.002367	-0.1466	-0.0492	0.04701	1001	6000
+	u[9]	0.004867	0.04252	0.001707	-0.07678	0.005302	0.08949	1001	6000
+dic.stats()
+
+DIC
+Dbar = post.mean of -2logL; Dhat = -2LogL at post.mean of stochastic nodes
+	Dbar	Dhat	pD	DIC	
+y	8720.270	7570.150	1150.120	9870.400	
+total	8720.270	7570.150	1150.120	9870.400	
+history(*,D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/reppr7/history.odc)
+
+History
+
+save(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/reppr7/log.odc)
+save(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/reppr7/log.txt)

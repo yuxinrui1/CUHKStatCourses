@@ -1,0 +1,129 @@
+ # R2WinBUGS code for Bayesian semiparametric linear SEM with covariates
+ # for calculating L measure.
+ library(MASS)
+ library(R2WinBUGS)
+ P1<-1                    # number of endogenous latent variables
+ P2<-2                    # number of exogenous latent variables
+ P<-9                     # dimension of the observed variable y
+ T<-100                   # number of replications
+ N<-300                   # sample size
+ nchains<-2               # number of chains
+ niter<-4000              # number of iterations in each replication
+ nburnin<-2000            # number of burn-in iterations in each replication
+ width<-niter-nburnin     # number of samples retained
+ Ebeta<-matrix(data=NA,nrow=T,ncol=18)  # save the estimation of beta
+ Elam<-matrix(data=NA,nrow=T,ncol=8)    # save the estimation of lam
+ Egam<-matrix(data=NA,nrow=T,ncol=3)    # save the estimation of gam
+ Esgd<-matrix(data=NA,nrow=T,ncol=P1)   # save the estimation of sgd
+ Esgm<-matrix(data=NA,nrow=T,ncol=P)    # save the estimation of sgm
+ SEbeta<-matrix(data=NA,nrow=T,ncol=18) # save the standard error estimate of beta
+ SElam<-matrix(data=NA,nrow=T,ncol=8)   # save the standard error estimate of lam
+ SEgam<-matrix(data=NA,nrow=T,ncol=3)   # save the standard error estimate of gam
+ SEsgd<-matrix(data=NA,nrow=T,ncol=P1)  # save the standard error estimate of sgd
+ SEsgm<-matrix(data=NA,nrow=T,ncol=P)   # save the standard error estimate of sgm
+ # save the observations simulated from WinBUGS for calculate L-measure
+ Beta<-array(dim=c(18,width))
+ Lam<-array(dim=c(8,width))
+ Gam<-array(dim=c(3,width))
+ Psd<-array(dim=c(P1,width))
+ Psi<-array(dim=c(P,width))
+ Eta<-array(dim=c(N,width))
+ Xi<-array(dim=c(N,P2,width))
+ TR<-numeric(N)
+ LM<-numeric(T)
+ Lambda<-matrix(0,byrow=T,ncol=P1+P2,nrow=P)
+ Lambda[1,1]<-1.0
+ Lambda[1,3]<-1.0
+ Lambda[4,2]<-1.0
+ Lambda[7,3]<-1.0
+ # specify the parameter we are interested, then WinBUGS will save the
+ corresponding estimates and standard error estimates for them
+ parameters<-c("beta","lam","gam","sgd","sgm","eta","xi")
+ # the number of clusters specified in TDP
+ C<-100
+ # initial values for the unknown parameters
+ init1<-list(lam=rep(1.0,8),gam=c(0.5,0.5,0.5),
+        beta=matrix(data=c(rep(0.5,9),rep(0.5,9)),byrow=F,ncol=2))
+ init2<-list(lam=rep(0.8,8),gam=c(1.0,0.5,1.0),
+        beta=matrix(data=c(rep(1.0,9),rep(0.7,9)),byrow=F,ncol=2))
+ # put the initial values together
+ inits<-list(init1, init2)
+ for(t in 1:T){ # begin of t
+   #read the data y
+   temp<-scan("C:/LM/y.txt",skip=(t-1)*N, nlines=N)
+   y<-matrix(data=temp,ncol=P,byrow=TRUE)
+   #read the fixed covariates in measurement equation
+   temp<-scan("C:/LM/co1.txt",skip=(t-1)*N, nlines=N)
+   co1<-matrix(data=temp,ncol=2,byrow=TRUE)
+   #read the fixed covariates in structural equation
+   temp<-scan("C:/LM/co2.txt",skip=(t-1)*N, nlines=N)
+   co2<-matrix(data=temp,ncol=1,byrow=TRUE)
+   data<-list(N=N,P=P,y=y,co1=co1,co2=co2,C=C)
+   # call the WinBUGS program
+   model<-bugs(data,inits,parameters,
+   model.file="C:/LM/model.txt",n.chains=nchains,n.iter=niter,n.burnin=nburnin,
+   n.thin=1,bugs.directory="C:/Program Files/WinBUGS14/",
+   working.directory="C:/LM/")
+   # save the samples for calculating the L-measure
+   for(i in 1:18){Beta[i,]<-model$sims.array[,1,i]}
+   for(i in 1:8){Lam[i,]<-model$sims.array[,1,18+i]}
+   for(i in 1:3){Gam[i,]<-model$sims.array[,1,26+i]}
+   for(i in 1:P1){Psd[i,]<-model$sims.array[,1,29+i]}
+   for(i in 1:P){Psi[i,]<-model$sims.array[,1,29+P1+i]}
+   for(i in 1:N){Eta[i,]<-model$sims.array[,1,29+P1+P+i]}
+   k<-1
+   for(i in 1:N){for(j in 1:P2){Xi[i,j,]<-model$sims.array[,1,29+P1+P+N+k];k<-k+1}}
+   # save the mean of the unknown parameters
+   Ebeta[t,]<-as.vector(model$mean$beta[,])
+   Elam[t,]<-model$mean$lam[]
+   Egam[t,]<-model$mean$gam[]
+   Esgd[t,]<-model$mean$sgd[]
+   Esgm[t,]<-model$mean$sgm[]
+   # save the standard error estimates of the unknown parameters
+   SEbeta[t,]<-as.vector(model$sd$beta[,])
+   SElam[t,]<-model$sd$lam[]
+   SEgam[t,]<-model$sd$gam[]
+   SEsgd[t,]<-model$sd$sgd[]
+   SEsgm[t,]<-model$sd$sgm[]
+   # for calculating L-measure
+   mmu<-matrix(data=0,nrow=N,ncol=P);TR<-rep(0,N)
+   for(m in 1:width){ # begin of m
+      A<-matrix(Beta[,m], byrow=T, ncol=2)
+      Lambda[2,1]<-Lam[1,m]; Lambda[2,3]<-Lam[2,m]
+      Lambda[3,1]<-Lam[3,m]; Lambda[3,3]<-Lam[4,m]
+      Lambda[5,2]<-Lam[5,m]; Lambda[6,2]<-Lam[6,m]
+      Lambda[8,3]<-Lam[7,m]; Lambda[9,3]<-Lam[8,m]
+      Lam1<-Lambda[,1:P1]; Lam2<-Lambda[,(P1+1):(P1+P2)]
+      Cov1<-(Lam1*Psd[,m])%*%t(Lam1)
+      for(k in 1:P){Cov1[k,k]<-Cov1[k,k]+Psi[k,m]}
+      for(i in 1:N){ # begin of i
+          EY<-A%*%co1[i,]+Lam2%*%Xi[i,,m]+
+              Lam1*(Gam[1,m]*co2[i]+Gam[2,m]*Xi[i,1,m]+Gam[3,i]*Xi[i,2,m])
+          Cov<-Cov1+EY%*%t(EY)
+          for(j in 1:P){mmu[i,j]<-mmu[i,j]+EY[j]/width;TR[i]<-TR[i]+Cov[j,j]/width}
+      } # end of i
+   } # end of m
+   LM[t]<-0.0
+   for(i in 1:N){ # begin of i
+         temp=0.0
+         for(j in 1:P){temp<-temp+mmu[i,j]^2}
+         LM[t]<-LM[t]+TR[i]-temp
+         temp=0.0
+         for(j in 1:P){temp<-temp+(yo[i,j]-mmu[i,j])^2}
+         LM[t]<-LM[t]+0.5*temp
+   } # end of i
+   # save the estimates and standard error estimates of the unknown parameters
+   write(Ebeta[t,],"C:/LM/Result/Est/Ebeta.txt",ncolumns=18,append=TRUE,sep="\t")
+   write(Elam[t,],"C:/LM/Result/Est/Elam.txt",ncolumns=8,append=TRUE,sep="\t")
+   write(Egam[t,],"C:/LM/Result/Est/Egam.txt",ncolumns=3,append=TRUE,sep="\t")
+   write(Esgd[t,],"C:/LM/Result/Est/Esgd.txt",ncolumns=P1,append=TRUE,sep="\t")
+   write(Esgm[t,],"C:/LM/Result/Est/Esgm.txt",ncolumns=P,append=TRUE,sep="\t")
+   write(SEbeta[t,],"C:/LM/Result/SE/SEbeta.txt",ncolumns=18,append=TRUE,sep="\t")
+   write(SElam[t,],"C:/LM/Result/SE/SElam.txt",ncolumns=8,append=TRUE,sep="\t")
+   write(SEgam[t,],"C:/LM/Result/SE/SEgam.txt",ncolumns=3,append=TRUE,sep="\t")
+   write(SEsgd[t,],"C:/LM/Result/SE/SEsgd.txt",ncolumns=P1,append=TRUE,sep="\t")
+   write(SEJ[t],"C:/LM/Result/SE/SEJ.txt",ncolumns=1,append=TRUE,sep="\t")
+   write(SEsgm[t,],"C:/LM/Result/SE/SEsgm.txt",ncolumns=P,append=TRUE,sep="\t")
+   # save the L measure
+   write(LM[t],"C:/LM/Result/LM/LM.txt",ncolumns=1,append=TRUE,sep="\t")
+ } #end of t

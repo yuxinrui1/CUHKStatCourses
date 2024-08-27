@@ -1,0 +1,37 @@
+display(log)
+check(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/bfalter3/../model_BF_alter.txt)
+model is syntactically correct
+data(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/bfalter3/data.txt)
+data loaded
+compile(1)
+model compiled
+inits(1,D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/bfalter3/inits1.txt)
+this chain contains uninitialized variables
+gen.inits()
+initial values generated, model initialized
+thin.updater(1)
+update(1000)
+set(ubar)
+set(deviance)
+dic.set()
+update(2000)
+coda(*,D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/bfalter3/coda)
+stats(*)
+
+Node statistics
+	 node	 mean	 sd	 MC error	2.5%	median	97.5%	start	sample
+	deviance	8341.0	72.29	4.469	8203.0	8339.0	8486.0	1001	2000
+	ubar	-1.063	2.502	0.05024	-7.715	-0.3454	2.402	1001	2000
+dic.stats()
+
+DIC
+Dbar = post.mean of -2logL; Dhat = -2LogL at post.mean of stochastic nodes
+	Dbar	Dhat	pD	DIC	
+y	8340.950	7162.490	1178.460	9519.410	
+total	8340.950	7162.490	1178.460	9519.410	
+history(*,D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/bfalter3/history.odc)
+
+History
+
+save(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/bfalter3/log.odc)
+save(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/mctutorial/bfalter3/log.txt)

@@ -1,0 +1,69 @@
+library(mvtnorm)   #Load mvtnorm package
+library(R2WinBUGS) #Load R2WinBUGS package
+
+N=300                         #Sample size
+AZ=matrix(NA, nrow=N, ncol=2) #Fixed covariates in measurement equation
+BZ=numeric(N)                 #Fixed covariate in structural equation
+XI=matrix(NA, nrow=N, ncol=2) #Explanatory latent variables
+Eta=numeric(N)                #Outcome latent variables
+Y=matrix(NA, nrow=N, ncol=8)  #Observed variables
+
+#The covariance matrix of xi
+phi=matrix(c(1, 0.15, 0.15, 1), nrow=2)
+
+p=numeric(3); p[1]=pnorm(-0.5); p[2]=pnorm(0.5)-p[1]; p[3]=1-pnorm(0.5)
+
+#Generate the data
+for (i in 1:N) {
+    AZ[i,1]=sample(1:3, 1, prob=p); AZ[i,2]=rnorm(1,0,1)
+    BZ[i]=rbinom(1,1,0.7)
+
+    XI[i,]=rmvnorm(1, c(0,0), phi)
+
+    delta=rnorm(1,0,1)
+    Eta[i]=BZ[i]+0.5*XI[i,1]+0.5*XI[i,2]+XI[i,2]*XI[i,2]+delta
+
+    eps=rnorm(8,0,1)
+    Y[i,1]=Eta[i]+eps[1]
+    Y[i,2]=1.5*Eta[i]+eps[2]
+    Y[i,3]=1.5*Eta[i]+eps[3]
+    Y[i,4]=XI[i,1]+eps[4]
+    Y[i,5]=1.5*XI[i,1]+eps[5]
+    Y[i,6]=XI[i,2]+eps[6]
+    Y[i,7]=1.5*XI[i,2]+eps[7]
+    Y[i,8]=1.5*XI[i,2]+eps[8]
+
+    for (j in 1:8) { Y[i,j]=Y[i,j]+AZ[i,1]+0.7*AZ[i,2] }
+}
+
+R=matrix(c(17.0 2.55, 2.55, 17.0), nrow=2)
+
+data=list(N=300, zero=c(0,0), x=AZ, z=BZ, R=R, y=Y, t=NA) #Data
+
+init1=list(lam=rep(0,5), a=matrix(rep(0,16), nrow=8, byrow=T),
+           gam=rep(0,4), b=0,    psi=rep(1,8),    psd=1,
+           phi=matrix(c(1, 0, 0, 1), nrow=2))
+
+init2=list(lam=rep(1,5), a=matrix(rep(1,16), nrow=8, byrow=T),
+           gam=rep(1,4), b=1,    psi=rep(2,8),    psd=2,
+           phi=matrix(c(2, 0, 0, 2), nrow=2))
+
+inits=list(init1, init2) #Initial values
+
+parameters=c("ubar")
+
+#Path sampling
+for (i in 1:21) {
+    data$t<-(i-1)*0.05
+    model<-bugs(data,inits,parameters,
+                model.file="C:/Bayes Factor/model.txt",
+                n.chains=2,n.iter=1500,n.burnin=1000,n.thin=1,
+                bugs.directory="c:/Program Files/WinBUGS14/",
+                working.directory="C:/Bayes Factor/")
+    u[i]<-model$mean$ubar
+}
+
+#Caluate log Bayes factor
+logBF=0
+for (i in 1:20) { logBF=logBF+(u[i+1]+u[i])*0.05/2 }
+print(logBF)

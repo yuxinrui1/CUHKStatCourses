@@ -1,0 +1,72 @@
+display(log)
+check(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/extendedmodel/Q1.1_1/../model1.txt)
+model is syntactically correct
+data(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/extendedmodel/Q1.1_1/data.txt)
+data loaded
+compile(1)
+model compiled
+inits(1,D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/extendedmodel/Q1.1_1/inits1.txt)
+this chain contains uninitialized variables
+gen.inits()
+initial values generated, model initialized
+thin.updater(1)
+update(1500)
+set(uby)
+set(ubeta)
+set(lam)
+set(gam)
+set(phx)
+set(sgm)
+set(sgd)
+set(deviance)
+dic.set()
+update(1500)
+coda(*,D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/extendedmodel/Q1.1_1/coda)
+stats(*)
+
+Node statistics
+	 node	 mean	 sd	 MC error	2.5%	median	97.5%	start	sample
+	deviance	3592.0	45.13	3.704	3502.0	3593.0	3680.0	1501	1500
+	gam[1]	0.5519	0.3305	0.03831	-0.1345	0.5668	1.206	1501	1500
+	gam[2]	0.7758	0.2341	0.02986	0.3617	0.76	1.283	1501	1500
+	lam[1]	0.879	0.2201	0.02681	0.5395	0.8578	1.396	1501	1500
+	lam[2]	0.899	0.2069	0.02574	0.5596	0.8752	1.428	1501	1500
+	lam[3]	0.4949	0.6037	0.014	-0.6636	0.4787	1.705	1501	1500
+	lam[4]	0.4899	0.5891	0.01535	-0.7434	0.4958	1.639	1501	1500
+	lam[5]	0.481	0.6208	0.01264	-0.7802	0.492	1.74	1501	1500
+	lam[6]	1.11	0.3105	0.02861	0.5497	1.098	1.751	1501	1500
+	lam[7]	1.12	0.3202	0.02525	0.5587	1.101	1.792	1501	1500
+	phx[1,1]	0.1447	0.07974	0.01193	0.04676	0.1301	0.3691	1501	1500
+	phx[1,2]	0.1307	0.07543	0.01106	0.002821	0.1241	0.3192	1501	1500
+	phx[2,1]	0.1307	0.07543	0.01106	0.002821	0.1241	0.3192	1501	1500
+	phx[2,2]	0.3285	0.1406	0.02072	0.1553	0.2942	0.6826	1501	1500
+	sgd	0.3825	0.1048	0.01269	0.2184	0.3721	0.6056	1501	1500
+	sgm[1]	0.3679	0.1342	0.002831	0.186	0.3421	0.7191	1501	1500
+	sgm[2]	0.3721	0.1372	0.003051	0.189	0.3415	0.7298	1501	1500
+	sgm[3]	0.3705	0.1341	0.003785	0.1873	0.3425	0.6972	1501	1500
+	sgm[4]	0.379	0.1402	0.00299	0.1878	0.3505	0.7342	1501	1500
+	ubeta	0.1785	0.1082	0.01283	-0.03574	0.1832	0.385	1501	1500
+	uby[1]	0.1534	0.1006	0.01072	-0.03978	0.1514	0.3537	1501	1500
+	uby[2]	0.06262	0.0919	0.009019	-0.1146	0.06271	0.2369	1501	1500
+	uby[3]	0.0266	0.09246	0.009319	-0.1489	0.02703	0.2056	1501	1500
+	uby[4]	0.01555	0.5096	0.01497	-0.9577	0.01102	1.039	1501	1500
+	uby[5]	0.01516	0.4837	0.01303	-0.9215	0.02275	0.9803	1501	1500
+	uby[6]	0.01463	0.5118	0.01485	-0.9665	0.002547	1.047	1501	1500
+	uby[7]	-0.008924	0.5057	0.01381	-1.033	0.01446	0.9711	1501	1500
+	uby[8]	-6.668E-4	0.09577	0.003013	-0.185	0.001801	0.1831	1501	1500
+	uby[9]	-0.04019	0.09711	0.00273	-0.2269	-0.04041	0.1567	1501	1500
+	uby[10]	-0.01974	0.09368	0.00252	-0.2102	-0.019	0.1635	1501	1500
+dic.stats()
+
+DIC
+Dbar = post.mean of -2logL; Dhat = -2LogL at post.mean of stochastic nodes
+	Dbar	Dhat	pD	DIC	
+y	1642.820	1406.510	236.311	1879.130	
+z	1948.960	1859.550	89.406	2038.360	
+total	3591.770	3266.060	325.717	3917.490	
+history(*,D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/extendedmodel/Q1.1_1/history.odc)
+
+History
+
+save(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/extendedmodel/Q1.1_1/log.odc)
+save(D:/OneDrive/OneDrive - sjtu.edu.cn/Records/CUHK/Course/STAT5020/codes/extendedmodel/Q1.1_1/log.txt)

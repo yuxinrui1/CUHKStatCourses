@@ -1,0 +1,104 @@
+model {
+	#Group one
+	for(i in 1:N1){
+		#measurement equation model
+		for(j in 1:6){
+			y1[i,j]~dnorm(mu1[i,j],psi1[j])I(thdpsych[j,z1[i,j]],thdpsych[j,z1[i,j]+1])
+		}
+		for(j in 7:11){
+			y1[i,j]~dnorm(mu1[i,j],psi1[j])I(thdsleep[j-6,z1[i,j]],thdsleep[j-6,z1[i,j]+1])
+		}
+		for(j in 12:17){
+			z1[i,j]~dnorm(mu1[i,j],psi1[j])
+		}
+		mu1[i,1]<-mu.y1[1]+eta1[i]
+		mu1[i,2]<-mu.y1[2]+xi1[i,1]
+		mu1[i,3]<-mu.y1[3]+lam[1]*xi1[i,1]
+		mu1[i,4]<-mu.y1[4]+lam[2]*xi1[i,1]
+		mu1[i,5]<-mu.y1[5]+lam[3]*xi1[i,1]
+		mu1[i,6]<-mu.y1[6]+lam[4]*xi1[i,1]
+		mu1[i,7]<-mu.y1[7]+xi1[i,2]
+		mu1[i,8]<-mu.y1[8]+lam[5]*xi1[i,2]
+		mu1[i,9]<-mu.y1[9]+lam[6]*xi1[i,2]
+		mu1[i,10]<-mu.y1[10]+lam[7]*xi1[i,2]
+		mu1[i,11]<-mu.y1[11]+lam[8]*xi1[i,2]
+		mu1[i,12]<-mu.y1[12]+xi1[i,3]
+		mu1[i,13]<-mu.y1[13]+lam[9]*xi1[i,3]
+		mu1[i,14]<-mu.y1[14]+lam[10]*xi1[i,3]
+		mu1[i,15]<-mu.y1[15]+lam[11]*xi1[i,3]
+		mu1[i,16]<-mu.y1[16]+lam[12]*xi1[i,3]
+		mu1[i,17]<-mu.y1[17]+lam[13]*xi1[i,3]
+																
+		#structural equation model
+		xi1[i,1:3]~dmnorm(zero3[1:3],phi[1:3,1:3])
+		eta1[i]~dnorm(nu1[i],psd1)
+		nu1[i]<-gam1[1]*xi1[i,1]+gam1[2]*xi1[i,2]+gam1[3]*xi1[i,3]
+	}# end of i
+
+    #Group two
+	for(i in 1:N2){
+		#measurement equation model
+		for(j in 1:6){
+			y2[i,j]~dnorm(mu2[i,j],psi2[j])I(thdpsych[j,z2[i,j]],thdpsych[j,z2[i,j]+1])
+		}
+		for(j in 7:11){
+			y2[i,j]~dnorm(mu2[i,j],psi2[j])I(thdsleep[j-6,z2[i,j]],thdsleep[j-6,z2[i,j]+1])
+		}
+		for(j in 12:17){
+			z2[i,j]~dnorm(mu2[i,j],psi2[j])
+		}
+		mu2[i,1]<-mu.y2[1]+eta2[i]
+		mu2[i,2]<-mu.y2[2]+xi2[i,1]
+		mu2[i,3]<-mu.y2[3]+lam[1]*xi2[i,1]
+		mu2[i,4]<-mu.y2[4]+lam[2]*xi2[i,1]
+		mu2[i,5]<-mu.y2[5]+lam[3]*xi2[i,1]
+		mu2[i,6]<-mu.y2[6]+lam[4]*xi2[i,1]
+		mu2[i,7]<-mu.y2[7]+xi2[i,2]
+		mu2[i,8]<-mu.y2[8]+lam[5]*xi2[i,2]
+		mu2[i,9]<-mu.y2[9]+lam[6]*xi2[i,2]
+		mu2[i,10]<-mu.y2[10]+lam[7]*xi2[i,2]
+		mu2[i,11]<-mu.y2[11]+lam[8]*xi2[i,2]	
+		mu2[i,12]<-mu.y2[12]+xi2[i,3]
+		mu2[i,13]<-mu.y2[13]+lam[9]*xi2[i,3]
+		mu2[i,14]<-mu.y2[14]+lam[10]*xi2[i,3]
+		mu2[i,15]<-mu.y2[15]+lam[11]*xi2[i,3]
+		mu2[i,16]<-mu.y2[16]+lam[12]*xi2[i,3]
+		mu2[i,17]<-mu.y2[17]+lam[13]*xi2[i,3]
+																
+		#structural equation model
+		xi2[i,1:3]~dmnorm(zero3[1:3],phi[1:3,1:3])
+		eta2[i]~dnorm(nu2[i],psd2)
+		nu2[i]<-gam2[1]*xi2[i,1]+gam2[2]*xi2[i,2]+gam2[3]*xi2[i,3]
+	}# end of i
+	
+	for(i in 1:3){zero3[i]<-0.0}
+	
+
+	#priors on loadings and coefficients
+	for(i in 1:17){mu.y1[i]~dnorm(0.0,0.5)}
+	for(i in 1:13){lam[i]~dnorm(0.0,0.5)}	
+	for(i in 1:3){gam1[i]~dnorm(0.0,0.5)}
+	for(i in 1:17){mu.y2[i]~dnorm(0.0,0.5)}
+	for(i in 1:3){gam2[i]~dnorm(0.0,0.5)}
+
+
+	
+	#priors on precisions
+	for(j in 1:17){
+		psi1[j]~dgamma(6,4)
+		sgm1[j]<-1/psi1[j]
+	}
+	psd1~dgamma(6,4)
+	sgd1<-1/psd1
+	phi[1:3,1:3]~dwish(R[1:3,1:3], 10)
+	phx[1:3,1:3]<-inverse(phi[1:3,1:3])
+	for(j in 1:17){
+		psi2[j]~dgamma(6,4)
+		sgm2[j]<-1/psi2[j]
+	}
+	psd2~dgamma(6,4)
+	sgd2<-1/psd2
+	
+} #end of model
+
+

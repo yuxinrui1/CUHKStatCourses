@@ -1,0 +1,100 @@
+model {
+	for (g in 1:G) {
+		#second level
+		for (j in 1:P) { vg[g,j]~dnorm(u2[g,j],psi2[j]) }
+
+		u2[g,1]<-1.0*xi2[g,1]
+		u2[g,2]<-lb[1]*xi2[g,1]
+		u2[g,3]<-lb[2]*xi2[g,1]
+
+		u2[g,4]<-1.0*xi2[g,2]
+		u2[g,5]<-lb[3]*xi2[g,2]
+		u2[g,6]<-lb[4]*xi2[g,2]
+
+		u2[g,7]<-1.0*xi2[g,3]
+		u2[g,8]<-lb[5]*xi2[g,3]
+		u2[g,9]<-lb[6]*xi2[g,3]
+		
+		xi2[g,1:3]~dmnorm(ux2[1:3],phip[1:3,1:3])
+   
+		#first model
+		for (i in 1:N[g]) {
+
+			for (j in 1:6) {
+				w[kk[g]+i,j]~dcat(p[kk[g]+i,j,1:C])
+				p[kk[g]+i,j,1]<-Q[kk[g]+i,j,1]
+				for (t in 2:C-1) { p[kk[g]+i,j,t]<-Q[kk[g]+i,j,t]-Q[kk[g]+i,j,t-1] }
+				p[kk[g]+i,j,C]<-1-Q[kk[g]+i,j,C-1]
+				for (t in 1:C-1) { Q[kk[g]+i,j,t]<-phi((alph[j,t]-u1[kk[g]+i,j])*sqrt(psi11[j])) }
+			}
+			#Note: the coding for the ordered categorical variable is 1,2,...,C
+
+			for (j in 7:9) { w[kk[g]+i,j]~dnorm(u1[kk[g]+i,j],psi1[j]) }
+      
+			u1[kk[g]+i,1]<-vg[g,1]+1.0*eta1[g,i]
+			u1[kk[g]+i,2]<-vg[g,2]+lw[1]*eta1[g,i]
+			u1[kk[g]+i,3]<-vg[g,3]+lw[2]*eta1[g,i]
+
+			u1[kk[g]+i,4]<-vg[g,4]+1.0*xi1[g,i,1]
+			u1[kk[g]+i,5]<-vg[g,5]+lw[3]*xi1[g,i,1]
+			u1[kk[g]+i,6]<-vg[g,6]+lw[4]*xi1[g,i,1]
+
+			u1[kk[g]+i,7]<-vg[g,7]+1.0*xi1[g,i,2]
+			u1[kk[g]+i,8]<-vg[g,8]+lw[5]*xi1[g,i,2]
+			u1[kk[g]+i,9]<-vg[g,9]+lw[6]*xi1[g,i,2]
+
+			#Structural Equation model
+			eta1[g,i]~dnorm(nu1[g,i], psd)
+			nu1[g,i]<-gam[1]*xi1[g,i,1]+gam[2]*xi1[g,i,2]+gam[3]*xi1[g,i,1]*xi1[g,i,2]+gam[4]*xi1[g,i,1]*xi1[g,i,1]+gam[5]*xi1[g,i,2]*xi1[g,i,2]
+			
+			xi1[g,i,1:2]~dmnorm(ux1[1:2],phi1[1:2,1:2])
+		} # end of i
+       
+	} # end of g 
+
+	for (i in 1:2) { ux1[i]<-0.0 }
+	for (i in 1:3) { ux2[i]<-0.0 }
+
+    # priors on loadings and coefficients
+	lb[1]~dnorm(lbp[1],psi2[2])	lb[2]~dnorm(lbp[2],psi2[3])	lb[3]~dnorm(lbp[3],psi2[5]) 
+	lb[4]~dnorm(lbp[4],psi2[6])	lb[5]~dnorm(lbp[5],psi2[8])	lb[6]~dnorm(lbp[6],psi2[9])
+
+	lw[1]~dnorm(lwp[1],psi1[2])	lw[2]~dnorm(lwp[2],psi1[3])	lw[3]~dnorm(lwp[3],psi1[5]) 
+	lw[4]~dnorm(lwp[4],psi1[6])	lw[5]~dnorm(lwp[5],psi1[8])	lw[6]~dnorm(lwp[6],psi1[9])
+
+	for (i in 1:5) { gam[i]~dnorm(gamp[i], psd) }
+   
+	# priors on thresholds
+	for (j in 1:6) {
+		alph[j,1]<-a
+		alph[j,2]~dnorm(0,0.01)I(alph[j,1],alph[j,3])
+		alph[j,3]~dnorm(0,0.01)I(alph[j,2],alph[j,4])
+		alph[j,4]<-b
+	}
+	# a, b are fixed to identify the ordered categorical variable
+
+	# priors on precisions
+
+	for (j in 1:9) {
+		psi1[j]~dgamma(10.0,8.0)
+		sgm1[j]<-1/psi1[j] 
+	}
+
+	for (j in 1:6) { psi2[j]<-1.0/0.3 }
+    
+	for (j in 7:9) {
+		psi2[j]~dgamma(10.0,8.0)
+		sgm2[j]<-1/psi2[j] 
+	}
+
+    psd~dgamma(10.0,8.0)
+    sgd<-1/psd
+
+    phi1[1:2,1:2]~dwish(R1[1:2,1:2],5)
+    phx1[1:2,1:2]<-inverse(phi1[1:2,1:2])
+
+    phi2[1:3,1:3]~dwish(R2[1:2,1:2],5)
+    phx2[1:3,1:3]<-inverse(phi2[1:3,1:3])
+
+} # end of model
+

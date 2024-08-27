@@ -1,0 +1,225 @@
+---
+title: "assn2"
+output: pdf_document
+date: "2023-11-19"
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = '~/Library/Mobile Documents/com~apple~CloudDocs/Course/STAT5060')
+```
+
+# Question1
+
+## Data preparation
+```{r}
+# Data preparation
+library(tidyverse)
+library(mvtnorm)
+data <- read_csv("score.csv")
+data <- data %>%
+  left_join(data %>%
+              group_by(Class) %>%
+              summarise(IQCL = mean(IQ)) %>%
+              ungroup(),
+            by = "Class") %>%
+  mutate(Class = as.integer(Class),
+         Gender = as.integer(Gender),
+         c.IQ=data$IQ-mean(data$IQ), 
+         c.SES=data$SES-mean(data$SES)); data
+```
+
+## Model(a) with random effects: 
+$$
+\left\{\begin{array}{l}
+y_{i j} \sim \mathcal{N}\left(\mu_{i j}, V_{i j}\right), \quad i=1, \ldots, n_j, j=1, \ldots, J \\
+\mu_{i j}=b_{j 1}+b_{j 2}\left(\mathrm{IQ}_{i j}-\overline{\mathrm{IQ}}\right)+\beta_1\left(\mathrm{SES}_{i j}-\overline{\mathrm{SES}}\right)+\beta_2 \mathrm{G}_{i j}+\beta_3 \mathrm{IQCL}_j \\
+\left(b_{j 1}, b_{j 2}\right) \sim \mathcal{N}_2\left(\left[m_1, m_2\right], \Sigma_b\right) \\
+V_{i j}=\theta_1+\theta_2 \mathrm{IQ}_{i j}
+\end{array}\right.
+$$
+```{r}
+m1 <- lme(SCORE ~ , data=data, na.action=na.omit, method="ML")
+summary(m1)
+```
+
+## Model(b) without random effects:
+
+$$
+\left\{\begin{array}{l}
+y_{i j} \sim \mathcal{N}\left(\mu_{i j}, V_{i j}\right), \quad i=1, \ldots, n_j, j=1, \ldots, J \\
+\mu_{i j}=m_1+m_2\left(\mathrm{IQ}_{i j}-\overline{\mathrm{IQ}}\right)+\beta_1\left(\mathrm{SES}_{i j}-\overline{\mathrm{SES}}\right)+\beta_2 \mathrm{G}_{i j}+\beta_3 \mathrm{IQCL}_j \\
+V_{i j}=\theta_1+\theta_2 \mathrm{IQ}_{i j}
+\end{array}\right.
+$$
+
+## Comparison of the two models
+
+Similarities:
+
+-   The 95% CI of $m_1$ does not cover 0 in both models, which suggests that centered IQ is a significant variable when predicting $y_{ij}$.
+
+-   The 95% CI of $\beta_1, \beta_2, \beta_3$ cover 0 in both models, which suggests that SES, gender, and average IQ of class are not significant.
+
+-   The 95% CI of $\theta_2$ does not cover 0 in both models and $\theta_2$ are both negative, which suggests that as IQ increases, the variance of $y_ij$ are relatively decreases.
+
+Differences:
+
+-   $\Sigma_{11}$ and $\Sigma_{22}$ are both significant, which suggests the randomness of intercept and slope is necessary for fitting the model.
+
+-   $\Sigma_{12}$ is not significant in Model(a), which suggests we can assume that $\Sigma$ is diagonal to get better fitted model.
+
+# Question2
+
+```{r}
+library(mvtnorm)
+
+# Set parameters and specifications
+n <- 800
+pi1 <- 0.5
+pi2 <- 0.5
+sigma1 <- diag(0.2, 3)
+sigma2 <- diag(0.2, 3)
+alpha1 <- matrix(c(1, -2, 1), nrow = 3)
+alpha2 <- matrix(c(-2, 1, 2), nrow = 3)
+beta1 <- matrix(c(-1, 1, 1, -1, 1, 1), nrow = 3)
+beta2 <- matrix(c(1, 2, 3, 1, 2, 3), nrow = 3)
+
+# Generate independent variables
+xi1 <- rnorm(n)
+xi2 <- runif(n)
+
+# Generate mixture component indicators
+Si <- sample(c(1, 2), n, replace = TRUE, prob = c(pi1, pi2))
+
+# Generate response variables
+yi <- matrix(0, nrow = n, ncol = 3)
+for (i in 1:n) {
+  if (Si[i] == 1) {
+    epsilon <- matrix(c(rmvnorm(1, mean = rep(0, 3), sigma = sigma1)), nrow = 3)
+    yi[i, ] <- alpha1 + beta1 %*% c(xi1[i], xi2[i]) + epsilon
+  } else {
+    epsilon <- matrix(c(rmvnorm(1, mean = rep(0, 3), sigma = sigma2)), nrow = 3)
+    yi[i, ] <- alpha2 + beta2 %*% c(xi1[i], xi2[i]) + epsilon
+  }
+}
+
+# View the simulated dataset
+simulated_data <- data.frame(yi)
+head(simulated_data)
+```
+
+Since $\Sigma_k$ is diagonal, we can run mixEM algorithm by row:
+
+```{r}
+library(mixtools)
+
+xi <- matrix(c(xi1, xi2), ncol = 2)
+
+# Estimate the mixture model parameters
+fitlist <- list()
+for (i in 1:3) {
+  fit <- regmixEM(yi[, i], xi, lambda = NULL, beta = NULL, sigma = NULL, k = 2,
+                  addintercept = TRUE, arbmean = TRUE, arbvar = TRUE, 
+                  epsilon = 1e-08, maxit = 10000, verb = FALSE)
+  fitlist[[i]] <- fit
+}
+
+alpha1_est <- matrix(ncol = 1, nrow = 3)
+alpha2_est <- matrix(ncol = 1, nrow = 3)
+beta1_est <- matrix(ncol = 2, nrow = 3)
+beta2_est <- matrix(ncol = 2, nrow = 3)
+pi_est = matrix(ncol = 2, nrow = 3)
+sigma_est = matrix(ncol = 2, nrow = 3)
+for (i in 1:3){
+  pi_est[i, ] = fitlist[[i]]$lambda
+  alpha1_est[i, 1] = fitlist[[i]]$beta[1, 1]
+  alpha2_est[i, 1] = fitlist[[i]]$beta[1, 2]
+  beta1_est[i, ] = fitlist[[i]]$beta[2:3, 1]
+  beta2_est[i, ] = fitlist[[i]]$beta[2:3, 2]
+  sigma_est[i, 1] = fitlist[[i]]$lambda[1] ^ 2
+  sigma_est[i, 2] = fitlist[[i]]$lambda[2] ^ 2
+}
+
+pi_est = colMeans(pi_est)
+# Print caption and the result of pi_est
+cat("Estimated pi: ")
+print(pi_est)
+
+# Print caption and the result of alpha1_est
+cat("Estimated alpha1: ")
+print(alpha1_est)
+
+# Print caption and the result of alpha2_est
+cat("Estimated alpha2: ")
+print(alpha2_est)
+
+# Print caption and the result of beta1_est
+cat("Estimated beta1: ")
+print(beta1_est)
+
+# Print caption and the result of beta2_est
+cat("Estimated beta2: ")
+print(beta2_est)
+```
+
+Since there is no constraint on $\alpha_k$ and $\beta_k$ and $\Sigma_1, \Sigma_2$ are both diagonal, the estimations of $\alpha_k$ and $\beta_k$ are not identifiable for each rows. If we switch the first row of $\alpha_{1}$ and $\alpha_2$, $\beta_{1}$ and $\beta_2$, our estimations are very close to the real parameters. One way is to add a prior or constraint(e.g. $\alpha_{k1}>\alpha_{k2}$) to avoid unidentifiability.
+
+# Question3
+## Data preparation
+```{r}
+library(tidyverse)
+library(rstan)
+L <- 2 
+m <- 400 
+N <- L * m 
+D1 <- 2
+mu <- 0
+sd_main <- 0.5
+beta <- c(1, -1)
+u <- c(1, -1)
+x <- matrix(rnorm(n = N * D1), ncol = D1)
+z <- matrix(runif(n = N))
+y <- mu + x %*% beta + z * rep(u, each = m) + rnorm(N, mean = 0, sd = sd_main) ## missing generating
+c <- -1
+alpha <- -1
+gamma <- c(1, -1)
+R <- boot::inv.logit(c + alpha * y + x %*% gamma) %>% sapply(function (x) rbinom(n = 1, size = 1, prob = x))
+
+list_data <- list(N = N,
+                  N_obs = sum(R == 0),
+                  N_mis = sum(R == 1),
+                  L = L,
+                  D1 = D1,
+                  y_obs = y[R == 0],
+                  x = x,
+                  z = as.vector(z),
+                  ll = rep(1:D1, each = m),
+                  R = R,
+                  ii_obs = which(R == 0),
+                  ii_mis = which(R == 1))
+fit.mnar <- stan(file = "q3MNAR.stan", data = list_data)
+fit.mar <- stan(file = "q3MAR.stan",data = list_data)
+```
+
+```{r}
+mean(R)
+```
+The missing proportion is approximately 30%.
+
+## Model(a) MNAR
+
+```{r}
+summary(fit.mnar)$summary[1:10, c("mean", "sd", "2.5%", "97.5%")]
+```
+## Model(b) MAR
+```{r}
+summary(fit.mar)$summary[1:9, c("mean", "sd", "2.5%", "97.5%")]
+```
+
+## Comparison
+-    The 95% CI of $\gamma_1, \gamma_2$ and $c$ in MNAR model covers the true parameters, while in MAR model the 95% CI does not cover the true parameter. It means MNAR model can more precisely estimate the true parameters.
+-    Compared to MAR model, MNAR model consider the effect of covariates $X$ on the missing mechanism and estimate the coefficient $\alpha$ when modeling 
+$$
+\operatorname{logit}\left(\pi_{i j}\right)=c+\alpha y_{i j}+\gamma^T \mathbf{x}_{i j}, \quad \pi_{i j}=p\left(R_{i j}=1\right), 
+$$
+which better calculates $P(R|Y,X,\eta)$ and improves the accuracy of the estimation. 

@@ -1,0 +1,72 @@
+model{
+  for (i in 1:N) {
+    # measurement equation model
+    for (j in 1:3) {
+      y[i, j] ~ dnorm(mu[i, j], 1)I(low[z[i, j] + 1], high[z[i, j] + 1])
+    }
+    ## winbugs cannot handle operation, in index variables, like k = j - 2 !!!
+    z[i, 4] ~ dnorm(mu[i, 4], psi[1])
+    z[i, 5] ~ dnorm(mu[i, 5], psi[2])
+    z[i, 6] ~ dnorm(mu[i, 6], psi[3])
+    z[i, 7] ~ dnorm(mu[i, 7], psi[4])
+    for (j in 8:P) {
+      z[i, j] ~ dbin(pb[i, j], 1)
+      pb[i, j] <- exp(mu[i, j]) / (1 + exp(mu[i, j]))
+    }
+    
+    mu[i, 1] <- uby[1] + eta[i]
+    mu[i, 2] <- uby[2] + lam[1] * eta[i]
+    mu[i, 3] <- uby[3] + lam[2] * eta[i]
+    mu[i, 4] <- uby[4] + xi[i, 1]
+    mu[i, 5] <- uby[5] + lam[3] * xi[i, 1]
+    mu[i, 6] <- uby[6] + lam[4] * xi[i, 1]
+    mu[i, 7] <- uby[7] + lam[5] * xi[i, 1]
+    mu[i, 8] <- uby[8] + xi[i, 2]
+    mu[i, 9] <- uby[9] + lam[6] * xi[i, 2]
+    mu[i, 10] <- uby[10] + lam[7] * xi[i, 2]
+    
+    
+    # structural equation model
+    xi[i, 1:2] ~ dmnorm(zero2[1:2], phi[1:2, 1:2])
+    eta[i] ~ dnorm(etamu[i], psd)
+    
+    etamu[i] <- ubeta * d[i] + gam[1] * xi[i, 1] + gam[2] * xi[i, 2]
+  } # End for i
+  
+  for (k in 1:2) { zero2[k] <- 0 }
+  
+  
+  # priors inputs for loadings and coefficients
+  for (j in 1:P) { uby[j] ~ dnorm(0.0, 4.0) }
+  
+  for (j in 1:2) { lam[j] ~ dnorm(0.5, 4.0) }
+  
+  pslam[1] <- 4.0 * psi[2]
+  lam[3] ~ dnorm(0.5, pslam[1])
+  pslam[2] <- 4.0 * psi[3]
+  lam[4] ~ dnorm(0.5, pslam[2])
+  pslam[3] <- 4.0 * psi[4]
+  lam[5] ~ dnorm(0.5, pslam[3])
+
+  for (j in 6:7) { lam[j] ~ dnorm(0.5, 4.0) }
+  
+  ubeta ~ dnorm (0.5, psd)
+  
+  psgam <- 4.0 * psd
+  for (k in 1:2) { 
+    gam[k] ~ dnorm(0.5, psgam) 
+  }
+  
+  
+  # priors inputs for precisions
+  for (j in 1:4) {
+    psi[j] ~ dgamma(9, 3)
+    sgm[j] <- 1 / psi[j]
+  }
+  
+  psd ~ dgamma(9, 3)
+  sgd <- 1 / psd
+  
+  phi[1:2, 1:2] ~ dwish(R[1:2, 1:2], 4)
+  phx[1:2, 1:2] <- inverse(phi[1:2, 1:2])
+} # End of model

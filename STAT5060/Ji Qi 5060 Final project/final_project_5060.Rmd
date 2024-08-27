@@ -1,0 +1,515 @@
+---
+title: "Final project STAT5060"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+date: "2023-11-23"
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+# Data Introduction
+
+The dataset "Nurses.csv" is from [the third edition of Multilevel
+analysis: Techniques and applications (Hox, J. J., Moerbeek, M., &
+Schoot, R,
+2018)](https://github.com/MultiLevelAnalysis/Datasets-third-edition-Multilevel-book),
+which contains data from a cross-sectional hypothetical study on stress
+experienced by nurses in hospitals. In each of 25 hospitals, four wards
+were selected and randomly assigned to an experimental or control
+condition, where the intervention included a training program to cope
+with job-related stress. After the intervention was implemented, a
+random sample of 10 nurses from each ward completed a survey to test
+job-related stress level.
+
+Variables in the dataset:
+
+*hospital*: ID number for a hospital $(1, \ldots, 25)$, a total of 25
+hospitals
+
+*ward*: ward numbering within a hospital $(1,2,3,4)$, a total of 4 wards
+from each hospital
+
+*wardid*: ID number of ward (not used in programming of analyses)
+
+*nurse*: ID number for a nurse $(1, \ldots, 1000)$, a total of 1000
+nurses (not used in programming)
+
+*age*: nurse's age in years gender: nurse's gender $(0=$ male, $1=$
+female $)$
+
+*experience*: nurse's years of experience working stress: outcome
+variable, a scale from 1 to 7
+
+*wardtype*: type of hospital ward ('general care', 'special care')
+
+*hospize*: hospital size ('small', 'medium', 'large')
+
+*expcon*: intervention indicator variable ('control', 'experiment')
+administered at Ward
+
+# Basic data manipulations
+
+```{r}
+library(ggplot2)
+library(nlme)
+library(lme4)
+library(mgcv)
+library(readr)
+library(furniture)    # nice table1() descriptives
+library(stargazer)    # display nice tables: summary & regression
+library(tidyverse)
+library(dplyr)
+nurses <- read_csv("./Nurses.csv")
+nurses$hospsize.n<-recode(nurses$hospsize, 'small'=0, 'medium'=1, 'large'=2)
+nurses$wardtype.n<-recode(nurses$wardtype, 'general care'=0, 'special care'=1)
+nurses$expcon.n<-recode(nurses$expcon, 'control'=0, 'experiment'=1)
+nurses$cgender<-ifelse(nurses$gender==0, 'Male', 'Female')
+nurses$age.C <- nurses$age-mean(nurses$age)#mean of 43.0005 years
+nurses$experience.C <- nurses$experience-mean(nurses$experience)#mean of 17.057 years
+nurses$Chospsize <-(nurses$hospsize.n-1)
+nurses$Cexpcon <- (nurses$expcon.n-0.5)
+nurses = data.frame(nurses)
+head(nurses)
+```
+
+# Exploratory Data Analysis
+```{r}
+stargazer(data.frame(nurses), title  = "Descriptive statistics, aggregate over entire sample",
+                       header = FALSE,
+                       type = "text")
+```
+
+```{r}
+library(ggplot2)
+p1 <- ggplot(nurses, aes(x=age, y=stress))
+p1 + geom_smooth(aes(group=expcon, color=expcon), method="loess", se=FALSE) + 
+  labs(title="Observed Stress versus Nurse's Age by Intervention Group",
+       x="Nurse's Age (yrs)", y="Observed Stress")
+
+```
+
+-   The relationship between Nurse's age and Stress can be described as
+    either linear if we assume that the smoothing was too smooth or as a
+    bimodal (decreasing through age 40, increasing between age 40 and 52
+    years, and decreasing after that). I will use a linear relationship
+    between because there are fewer nurses in the older ages, and that
+    could just be an artifact of the data.
+-   Given that both lines are simply parallel to each other, there is no
+    moderating effect of intervention on this association.
+
+```{r}
+p2 <- ggplot(data=nurses, aes(y=stress, x=cgender, fill=expcon))
+p2 + geom_boxplot() + 
+  labs(title="Distribution of Observed Stress by Gender and Intervention Group", 
+       x="Gender", y="Observed Stress")
+
+```
+
+-   There may or may not be an association between gender and stress, as
+    on average, stress seems to be very similar between intervention and
+    control groups.
+-   Because among males, there is a large overlaps in stress, and it is
+    unclear whether there is an intervention effect among females, the
+    visual inspection of the plot does not suggest a moderating effect
+    of intervention on the association between stress and gender.
+
+```{r}
+p3 <- ggplot(nurses, aes(x=experience, y=stress))
+p3 + geom_smooth(aes(group=expcon, color=expcon), method="loess", se=FALSE) + 
+  labs(title="Observed Stress versus Nurse's Work Experience by Intervention Group",
+       x="Nurse's Work Experience (yrs)", y="Observed Stress")
+
+```
+
+-   There appears to be a liner relationship between observed stress and
+    nurse's experience in years.
+
+-   Given that the two trajectories behave in parallel, this does not
+    suggest a moderating effect of intervention on this association.
+
+```{r}
+p4 <- ggplot(data=nurses, aes(y=stress, x=wardtype, fill=expcon))
+p4 + geom_boxplot() + 
+  labs(title="Distribution of Observed Stress by Hospital Ward Type and Intervention Group", 
+       x="Hospital Ward Type", y="Observed Stress")
+
+```
+
+-   Stress does not seem to depend on ward type, as if we were to
+    average the control and intervention boxplots within each ward type,
+    they would be approximately the same;
+
+-   Since the intervention effect size seems to be the same within each
+    ward type, therefore, there does not seem to be a moderating effect.
+
+```{r}
+p5 <- ggplot(data=nurses, aes(y=stress, x=hospsize, fill=expcon))
+p5 + geom_boxplot() + 
+  labs(title="Distribution of Observed Stress by Hospital Size and Intervention Group", 
+       x="Hospital Size", y="Observed Stress")
+
+```
+
+-   If you average within each hospital size the effect size of
+    intervention, it seems that there is a linear decline in stress
+    across the hospital size;
+-   Because the effect size of intervention is different between the
+    hospital sizes, there is a potential moderating effect.
+
+# Multi-level models
+## 
+
+## Three-level model using only a random intercept at each appropriate level of hierarchy
+
+$$
+\begin{aligned}
+& \text { Level } 1 \text { (nurse): } Y_{i j k}=\gamma_{0 j k}+\gamma_{1 j k} \operatorname{Sex}_{i j k}+\gamma_{2 j k} \operatorname{Cexp}_{i j k}+\gamma_{3 j k} \operatorname{Cage}_{i j k}+\epsilon_{i j k} \\
+& \text { Level } 2 \text { (ward): } \gamma_{0 j k}=\gamma_{00 k}+b_{0 j k}+\gamma_{01 k} \text {Nwardtype}_{j k}+\gamma_{02 k} \text {Cexpcon}_{i k} \\
+& \text { Level } 3 \text { (hospital): } \gamma_{00 k}=\beta_{000}+b_{0 k}+\beta_{001} \text {Chospsize}_k \text {; } \\ \\
+& \gamma_{02 k}=\beta_{020}+\beta_{021} \text {Chospsize}_k ; \gamma_{01 k}=\beta_{010} ; \gamma_{1 j k}=\beta_{100} ; \gamma_{2 j k}=\beta_{200} ; \gamma_{3 j k}=\beta_{300} \\ \\
+& \text { Combined Model: } Y_{i j k}=\beta_{000}+b_{0 k}+b_{0 j k}+\beta_{001} \text {Chospsize}_k+ \beta_{010} \text {Nwardtype}_{i k} 
+\\& +\left(\beta_{020}+\beta_{021} \text {Chospsize}_k\right) \operatorname{Cexpcon}_{j k}+\beta_{100} \text {Sex}_{i j k}+\beta_{200} \operatorname{Cexp}_{i j k}+\beta_{300} \operatorname{Cage}_{i j k}+\epsilon_{i j k} \\ 
+&
+\end{aligned}
+$$
+
+```{r}
+m1 <- lme(stress ~   age.C + gender + experience.C + wardtype.n + Chospsize*Cexpcon, random = ~ 1+ward|hospital, 
+               data=nurses, na.action=na.omit, method="ML")
+summary(m1)
+```
+
+```{r}
+VarCorr(m1)
+```
+
+```{r}
+icc1 <- (as.numeric(VarCorr(m1)[2])+as.numeric(VarCorr(m1)[4]))/(as.numeric(VarCorr(m1) [2])+as.numeric(VarCorr(m1)[4])+as.numeric(VarCorr(m1)[5]) )
+icc1
+```
+
+```{r}
+icc2<-as.numeric(VarCorr(m1)[2])/(as.numeric(VarCorr(m1)[2])+as.numeric(VarCorr(m1)[4
+])+ as.numeric(VarCorr(m1)[5]))
+icc2
+```
+
+-   The estimated correlation among responses (stress level) within the
+    same ward and the same hospital is 58.42%.
+
+-   The estimated correlation among responses (stress level) from the
+    same hospital regardless of ward type is 26.20%.
+
+## Three-level model adding a random slope for centered intervention indicator variable due to hospital
+
+$$
+\begin{gathered}
+\text { Level } 1 \text { (nurse): } Y_{i j k}=\gamma_{0 j k}+\gamma_{1 j k} \text {Sex}_{i j k}+\gamma_{2 j k} \text {Cexp}_{i j k}+\gamma_{3 j k} \text {Cage}_{i j k}+\epsilon_{i j k} \\
+\text { Level } 2 \text { (ward): } \gamma_{0 j k}=\gamma_{00 k}+b_{0 j k}+\gamma_{01 k} \text {Nwardtype}_{i k}+\gamma_{02k} \text { Cexpcon }_{i k} \\
+\text { Level } 3 \text { (hospital): } \gamma_{00 k}=\beta_{000}+b_{0 k}+\beta_{001} \text {Chospsize}_k ; \\\\
+\begin{array}{c}
+\gamma_{02 k}=\beta_{020}+\beta_{021} \text {Chospsize}_k+b_{02 k} ; \gamma_{01 k}=\beta_{010} ; \gamma_{1 j k}=\beta_{100} ; \gamma_{2 j k}=\beta_{200} ;
+\gamma_{3 j k}=\beta_{300} \\\\
+\text { Combined Model: } Y_{i j k}=\beta_{000}+b_{0 k}+b_{0 j k}+\beta_{001} \text {Chospsize}_k+ \beta_{010} \text {Nwardtype}_{j k}+ \\ d
+\left(\beta_{020}+\beta_{021} \text {Chospsize}_k+b_{02 k}) \text {Cexpcon}_{j k}+\beta_{100} \text {Sex}_{i j k}+\beta_{200} \text {Cexp}_{i j k}\right. +\beta_{300} \text {Cage}_{i j k}+\epsilon_{i j k}
+\end{array}
+\end{gathered}
+$$
+
+```{r}
+m2 <- lme(stress ~age.C + gender + experience.C + wardtype.n + Chospsize*Cexpcon, random = list(hospital=~1+Cexpcon, ward=~1), 
+          data=nurses, na.action=na.omit, method="ML")
+summary(m2)
+```
+
+```{r}
+VarCorr(m2)
+```
+
+```{r}
+icc2.1 = (0.166 + 0.203 + 0.111) / (0.166 + 0.203 + 0.111 + 0.217)
+icc2.2 = (0.166 + 0.111) / (0.166 + 0.203 + 0.111 + 0.217)
+icc2.3 = (0.166) / (0.166 + 0.203 + 0.111 + 0.217)
+icc2.1
+icc2.2
+icc2.3
+```
+
+```{r}
+icc2<-as.numeric(VarCorr(m2)[2])/(as.numeric(VarCorr(m2)[2])+as.numeric(VarCorr(m2)[4
+])+ as.numeric(VarCorr(m2)[5]))
+icc2
+```
+```{r}
+intervals(m2)
+```
+
+-   Estimated variance of $b_{0k}$ is 0.1516 and it describes the variability
+    in stress across different hospitals (Level 3 variance component);
+
+-   Estimated variance of $b_{0jk}$ is 0.1087 and it describes the
+    variability in stress across different wards within the same
+    hospital (Level 2 variance component);
+
+-   Estimated variance of $b_{02k}$ is 0.1784 describes variability in
+    intervention effects across hospitals (Level 3 variance component);
+
+-   Estimated correlation between $b_{0k}$ and $b_{02k}$ is 0.34, which
+    means the larger the deviation of a hospital's mean for nurses'
+    stress from the overall mean of stress averaged across all
+    hospitals, the larger the deviation for that hospital's intervention
+    effect from the overall intervention effect size averaged across all
+    hospitals.
+
+-   Estimated residual variance of 0.2166 is the estimated variance of
+    epsilon and it captures the variability of the individual nurse's
+    stress levels around the mean stress level for a specific ward
+    within a hospital.
+
+Similar to M1, the majority of heterogeneity in stress (response
+variable) is explained by the correlation among responses from the same
+ward within a hospital, but it is now composed of an additional source
+of heterogeneity due to the varying effect sizes of intervention across
+different hospitals: the variance of $b_{0k}$ increased from 0.1361 (M1)
+to 0.1516 (M2), the variance of $b_{0jk}$ decreased from 0.1676 (M1) to
+0.1087 (M2) but this decrease is compensated by the additional variance
+of 0.1783 from the random effect of the heterogeneity of intervention
+effect on stress (which is a ward-level covariate) across different
+hospitals.
+
+## Comparison between two models
+
+To compare the two models, the only difference between them is in the
+covariance matrix -- therefore, we need to conduct a LRT using REML:
+
+The hypotheses are:
+
+$$
+\mathrm{H}_0: \sigma_{b_{02k}}^2=0
+$$
+$$
+\mathrm{H}_1: \sigma_{b_{02k}}^2 \neq 0
+$$
+
+```{r}
+m1 <- lme(stress ~   age.C + gender + experience.C + wardtype.n + Chospsize*Cexpcon, random = ~ 1|hospital/ward, 
+          data=nurses, na.action=na.omit)
+m2 <- lme(stress ~age.C + gender + experience.C + wardtype.n + Chospsize*Cexpcon, random = list(hospital=~Cexpcon, ward=~1), 
+                data=nurses, na.action=na.omit)
+anova(m1, m2)
+```
+
+This is the likelihood ratio test (LRT), implemented via REML, with
+df=2, G2=8.406 and p=0.0149 (smaller than 0.10), indicating that the
+addition of the random effect of intervention across different hospitals
+is significantly improving the fit of the model to the data.
+
+Hence, we decide to choose model2.
+
+```{r}
+summary(m2)
+```
+
+# Interpretation of the final model
+
+-   *Intercept*: estimated mean stress for a male nurse working on a
+    general ward of a medium sized hospital, with average age and
+    average years of experience, is 5.40 points;
+-   *Age.c*: **for every one year of increase in age, mean stress level
+    significantly increases by 0.02 points;**
+-   *Gender*: **female nurses reported on average significantly lower
+    stress than male nurses, and that difference is estimated to be 0.45
+    points;**
+-   *Experience.C*: **for every one year of increase in work experience,
+    mean stress level significantly decreases by 0.06 points;**
+-   *Wardtype.n*: while the estimated mean stress in a specialty care
+    ward was on average higher than in the general ward by 0.05 points,
+    **this difference was neither clinically nor statistically
+    significant or meaningful;**
+-   *Chospsize, Cexpcon and Chospsize*$\times$Cexpcon should be
+    interpreted together: as hospital size increased from small to
+    medium to large, the significant reduction in mean stress level due
+    to intervention was significantly diminished/diluted: there was **a
+    significant reduction in mean stress level due to intervention at
+    small hospitals** (an estimated reduction of
+    Beta6-Beta7=-0.499-0.998=-1.5), **a significant reduction in mean
+    stress level due to intervention in medium-sized hospitals** (an
+    estimated reduction of Beta6=-0.499 points), and a non-significant
+    increase in large-sized hospitals (an estimated increase of
+    Beta6+Beta7=-0.499+.998=0.499), meaning that **intervention did not
+    seem to significantly impact mean stress level among nurses in large
+    hospitals.**
+
+# Residual and random effects visual diagnostic check
+
+```{r}
+m.finalb = m2
+library(mgcv)
+est.cov.mfinalb<-extract.lme.cov(m.finalb)
+pred.m.finalb = fitted(m.finalb, level=0:2)
+pred.m.finalb0 = fitted(m.finalb, level=0)
+pred.m.finalb1=fitted(m.finalb, level=1)
+pred.m.finalb2=fitted(m.finalb, level=2)
+resid.m.finalb=resid(m.finalb, level=0:2)
+
+cr.final <- solve(t(chol(est.cov.mfinalb))) %*% residuals(m.finalb, level=0)
+
+pred.mfinalb = data.frame(id=nurses$nurse,ctrt=nurses$expcon,trt=nurses$expcon.n,   age=nurses$age,experience=nurses$experience, hospsize=nurses$hospsize.n,chospsize=nurses$hospsize, gender=nurses$gender, cgender=nurses$cgender, pred=fitted(m.finalb, level=0), type=nurses$wardtype.n, ctype =nurses$wardtype, resid=cr.final[,1])
+```
+
+## Histogram and a Q-Qplot for the transformed residuals
+
+```{r}
+library(gridExtra)
+#Histogram of transformed residuals for final model
+p1 <- ggplot(pred.mfinalb, aes(x=resid))
+p1<- p1 + geom_histogram(aes(y=..density..), color="black", fill="lightblue") +
+  geom_density() + labs(title="Distribution of Transformed Residuals-LME Final Model", x="Residual")
+
+#Q-Q plot of transformed residuals for m3
+p2 <- ggplot(pred.mfinalb, aes(sample=resid))
+p2<- p2 + geom_qq_line(color="blue",size=1) + geom_qq() +
+  labs(title="Q-Q plot of Transformed Residuals-LME Final Model", x="Quantile", y="Residual")
+
+#install.packages("gridExtra")
+#library("gridExtra")
+plots.Q3di<-grid.arrange(p1,p2, nrow=1)
+plots.Q3di
+
+```
+
+The histogram of residuals looks pretty normal, and the Q-Q plot
+indicates no significant departures from the Normality assumption.
+
+## Transformed residuals against the marginal mean response and each covariate in the final model
+
+```{r}
+p3 <- ggplot(pred.mfinalb, aes(x=pred, y=resid))
+p3 <- p3 + geom_point() + geom_hline(yintercept=0,colour="red") + 
+  geom_smooth(method="loess", se=F) +
+  labs(x="Predicted Mean", y="Residual")
+
+#Scatter plot of transformed residual against age with LOESS smoothed curve for final model
+p4 <- ggplot(pred.mfinalb, aes(x=age, y=resid))
+p4 <- p4 + geom_point() + geom_hline(yintercept=0,colour="red") + 
+  geom_smooth(method="loess", se=F) +
+  labs(x="Age (yrs)", y="Residual")
+
+#Scatter plot of transformed residual against Experience with LOESS smoothed curve for final model
+p5 <- ggplot(pred.mfinalb, aes(x=experience, y=resid))
+p5 <- p5 + geom_point() + geom_hline(yintercept=0,colour="red") + 
+  geom_smooth(method="loess", se=F) +
+  labs(x="Experience (yrs)", y="Residual")
+
+#Scatter plot of transformed residual against Hospital Size with LOESS smoothed curve for final model
+p6 <- ggplot(pred.mfinalb, aes(x=hospsize, y=resid))
+p6 <-p6 + geom_point() + geom_hline(yintercept=0,colour="red") + 
+  geom_smooth(method="loess", se=F) +
+  labs(x="Hospital Size, 0=Small, 1=Medium, 2=Large", y="Residual")
+
+#Scatter plot of transformed residual against Gender with LOESS smoothed curve for final model
+p7 <- ggplot(pred.mfinalb, aes(x=gender, y=resid))
+p7 <- p7 + geom_point() + geom_hline(yintercept=0,colour="red") + 
+  geom_smooth(method="loess", se=F) +
+  labs(x="Gender, 0=Male, 1=Female", y="Residual")
+
+#Scatter plot of transformed residual against Treatment with LOESS smoothed curve for final model
+p8 <- ggplot(pred.mfinalb, aes(x=trt, y=resid))
+p8 <- p8 + geom_point() + geom_hline(yintercept=0,colour="red") + 
+  geom_smooth(method="loess", se=F) +
+  labs(x="Treatment", y="Residual")
+
+#Scatter plot of transformed residual against Ward Type with LOESS smoothed curve for final model
+p9 <- ggplot(pred.mfinalb, aes(x=type, y=resid))
+p9 <- p9 + geom_point() + geom_hline(yintercept=0,colour="red") + 
+  geom_smooth(method="loess", se=F) +
+  labs(x="Ward Type, 0=General Care, 1=Special Care", y="Residual")
+plots.Q3dii<-grid.arrange(p3,p4,p5,p6,p7,p8,p9, nrow=3, top="Transformed Residuals by Covariates")
+plots.Q3dii
+plot(plots.Q3dii)
+```
+
+The distribution of transformed residuals relative to each covariate
+indicates that the model for the mean response fits the data well and
+that the functional form for each covariate seems to be appropriate, as
+there are no systematic trends identified visually: the residuals are
+approximately 0 on average and their variability is approximately half
+above and half below the average of 0.
+
+## Histograms and Q-Q plots of the random effects (BLUPS)
+
+```{r}
+###Assessing normality of random effects for final model
+mfinalb.re <- random.effects(m.finalb)
+str(mfinalb.re)
+
+hosp.level.re<-as.data.frame(mfinalb.re$hospital)
+head(hosp.level.re)
+length(hosp.level.re$Cexpcon)#25 hospitals
+ward.level.re<-as.data.frame(mfinalb.re$ward)
+head(ward.level.re)
+length(ward.level.re$`(Intercept)`)#100 wards
+
+#Calculate the variance of the empirical BLUPs and compare them to the estimated variances for final model
+apply(hosp.level.re, 2, var)
+#(Intercept)     Cexpcon 
+#0.130260    0.110292 
+apply(ward.level.re, 2, var)
+#(Intercept) 
+#0.06012455 
+
+#Histogram of transformed Random Effects for final model
+p1 <- ggplot(hosp.level.re, aes(x=`(Intercept)`))
+p1 <- p1 + geom_histogram(aes(y=..density..), color="black", fill="lightblue") +
+  geom_density() + labs(title="Random Int for Hospital", x="Hospital RE")
+
+#Q-Q plot 
+p2 <- ggplot(hosp.level.re, aes(sample=`(Intercept)`))
+p2 <- p2 + geom_qq_line(color="blue",size=1) + geom_qq() +
+  labs(title="Random Int for Hospital", x="Quantile", y="Hospital RE")
+
+#Histogram
+p3 <- ggplot(hosp.level.re, aes(x=Cexpcon))
+p3 <- p3 + geom_histogram(aes(y=..density..), color="black", fill="lightblue") +
+  geom_density() + labs(title="Random Trt across Hospitals", x="Hospital*Treat RE")
+
+#Q-Q plot 
+p4 <- ggplot(hosp.level.re, aes(sample=Cexpcon))
+p4 <- p4 + geom_qq_line(color="blue",size=1) + geom_qq() +
+  labs(title="Random Trt across Hospitals", x="Quantile", y="Hospital*Treat RE")
+
+#Histogram 
+p5 <- ggplot(ward.level.re, aes(x=`(Intercept)`))
+p5 <- p5 + geom_histogram(aes(y=..density..), color="black", fill="lightblue") +
+  geom_density() + labs(title="Random Int for Ward", x="Ward RE")
+
+#Q-Q plot 
+p6 <- ggplot(ward.level.re, aes(sample=`(Intercept)`))
+p6 <- p6 + geom_qq_line(color="blue",size=1) + geom_qq() +
+  labs(title="Q-Q plot of Random Int for Ward", x="Quantile", y="Ward RE")
+
+plots.Q3diii<-grid.arrange(p1,p2,p3,p4,p5,p6, nrow=2, top="Distribution of Random Effects: Histogram and Q-Q Plots")
+plots.Q3diii
+plot(plots.Q3diii)
+```
+
+-   Random Intercept for Hospital: there do not appear to be fatal
+    departures from normality for the random intercepts for Hospital,
+    and their empirical distribution simply reflects the relatively
+    small number of hospitals in the study (only 25 hospitals).
+
+-   Random Treatment Effect across Hospitals: similarly to the
+    distribution of RE for Hospital, this RE suffers from the small
+    sample size of hospitals, and does not appear to have fatal
+    departures from normality (Q-Q plot).
+
+-   Random Intercept for Ward: there do not appear to be fatal
+    departures from normality for the RE for ward; because there were
+    more wards than hospitals, the histogram and the Q-Q plot for this
+    RE looks better for the other two Res, but it's only due to the
+    increased sample size (number of wards is 100).
+
+

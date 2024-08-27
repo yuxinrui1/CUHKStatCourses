@@ -1,0 +1,88 @@
+model {
+	#Group one
+	for(i in 1:N1){
+		#measurement equation model
+		for(j in 1:6){
+			y1[i,j]~dnorm(mu1[i,j],psi1[j])I(thdpsych[j,z1[i,j]],thdpsych[j,z1[i,j]+1])
+		}
+		for(j in 7:11){
+			y1[i,j]~dnorm(mu1[i,j],psi1[j])I(thdsleep[j-6,z1[i,j]],thdsleep[j-6,z1[i,j]+1])
+		}
+		mu1[i,1]<-mu.y1[1]+eta1[i]
+		mu1[i,2]<-mu.y1[2]+xi1[i,1]
+		mu1[i,3]<-mu.y1[3]+lam1[1]*xi1[i,1]
+		mu1[i,4]<-mu.y1[4]+lam1[2]*xi1[i,1]
+		mu1[i,5]<-mu.y1[5]+lam1[3]*xi1[i,1]
+		mu1[i,6]<-mu.y1[6]+lam1[4]*xi1[i,1]
+		mu1[i,7]<-mu.y1[7]+xi1[i,2]
+		mu1[i,8]<-mu.y1[8]+lam1[5]*xi1[i,2]
+		mu1[i,9]<-mu.y1[9]+lam1[6]*xi1[i,2]
+		mu1[i,10]<-mu.y1[10]+lam1[7]*xi1[i,2]
+		mu1[i,11]<-mu.y1[11]+lam1[8]*xi1[i,2]
+	
+																
+		#structural equation model
+		xi1[i,1:2]~dmnorm(zero2[1:2],phi1[1:2,1:2])
+		eta1[i]~dnorm(nu1[i],psd1)
+		nu1[i]<-gam1[1]*xi1[i,1]+gam1[2]*xi1[i,2]
+	}# end of i
+
+    #Group two
+	for(i in 1:N2){
+		#measurement equation model
+		for(j in 1:6){
+			y2[i,j]~dnorm(mu2[i,j],psi2[j])I(thdpsych[j,z2[i,j]],thdpsych[j,z2[i,j]+1])
+		}
+		for(j in 7:11){
+			y2[i,j]~dnorm(mu2[i,j],psi2[j])I(thdsleep[j-6,z2[i,j]],thdsleep[j-6,z2[i,j]+1])
+		}
+		mu2[i,1]<-mu.y2[1]+eta2[i]
+		mu2[i,2]<-mu.y2[2]+xi2[i,1]
+		mu2[i,3]<-mu.y2[3]+lam2[1]*xi2[i,1]
+		mu2[i,4]<-mu.y2[4]+lam2[2]*xi2[i,1]
+		mu2[i,5]<-mu.y2[5]+lam2[3]*xi2[i,1]
+		mu2[i,6]<-mu.y2[6]+lam2[4]*xi2[i,1]
+		mu2[i,7]<-mu.y2[7]+xi2[i,2]
+		mu2[i,8]<-mu.y2[8]+lam2[5]*xi2[i,2]
+		mu2[i,9]<-mu.y2[9]+lam2[6]*xi2[i,2]
+		mu2[i,10]<-mu.y2[10]+lam2[7]*xi2[i,2]
+		mu2[i,11]<-mu.y2[11]+lam2[8]*xi2[i,2]	
+																
+		#structural equation model
+		xi2[i,1:2]~dmnorm(zero2[1:2],phi2[1:2,1:2])
+		eta2[i]~dnorm(nu2[i],psd2)
+		nu2[i]<-gam2[1]*xi2[i,1]+gam2[2]*xi2[i,2]
+	}# end of i
+	
+	for(i in 1:2){zero2[i]<-0.0}
+	
+
+	#priors on loadings and coefficients
+	for(i in 1:11){mu.y1[i]~dnorm(0.0,0.1)}
+	for(i in 1:8){lam1[i]~dnorm(0.0,0.1)}	
+    for(i in 1:2){gam1[i]~dnorm(0.0,0.1)}
+	for(i in 1:11){mu.y2[i]~dnorm(0.0,0.1)}
+	for(i in 1:8){lam2[i]~dnorm(0.0,0.1)}	
+    for(i in 1:2){gam2[i]~dnorm(0.0,0.1)}
+	
+	#priors on precisions
+	for(j in 1:11){
+		psi1[j]~dgamma(10,4)
+		sgm1[j]<-1/psi1[j]
+	}
+	psd1~dgamma(10,4)
+	sgd1<-1/psd1
+	phi1[1:2,1:2]~dwish(R[1:2,1:2], 30)
+	phx1[1:2,1:2]<-inverse(phi1[1:2,1:2])
+	for(j in 1:11){
+		psi2[j]~dgamma(10,4)
+		sgm2[j]<-1/psi2[j]
+	}
+	psd2~dgamma(10,4)
+	sgd2<-1/psd2
+	phi2[1:2,1:2]~dwish(R[1:2,1:2], 30)
+	phx2[1:2,1:2]<-inverse(phi2[1:2,1:2])
+	
+} #end of model
+
+

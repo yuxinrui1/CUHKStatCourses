@@ -1,0 +1,20 @@
+ksads_14_401_p	Fidgets
+ksads_14_84_p	Difficulty remaining seated
+ksads_14_402_p	Runs or climbs excessively
+ksads_14_404_p	Difficulty playing quietly
+ksads_14_403_p	Acts like driven by a motor
+ksads_14_408_p	Often talks excessively
+ksads_14_405_p	Blurts out answers
+ksads_14_406_p	Difficulty waiting turn
+ksads_14_407_p	Often Interrupts or intrudes on others
+ksads_14_394_p	Often makes careless mistakes
+ksads_14_76_p	Difficulty sustaining attention
+ksads_14_395_p	Often does not seem to listen when spoken to
+ksads_14_396_p	Difficulty following Instructions
+ksads_14_397_p	Difficulty organizing tasks
+ksads_14_398_p	Avoids tasks requiring attention
+ksads_14_399_p	Often loses things
+ksads_14_80_p	Easily distracted
+ksads_14_400_p	Forgetful in daily activities
+
+

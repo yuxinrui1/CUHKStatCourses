@@ -1,0 +1,43 @@
+model {
+    for (i in 1:N) {
+        for (j in 1:10) { y[i,j]~dnorm(mu[i,j], psi[j]) }
+        mu[i,1]<-u[1]+eta[i]
+        mu[i,2]<-u[2]+lam[1]*eta[i]
+        mu[i,3]<-u[3]+lam[2]*eta[i]
+        mu[i,4]<-u[4]+xi[i,1]
+        mu[i,5]<-u[5]+lam[3]*xi[i,1]
+        mu[i,6]<-u[6]+lam[4]*xi[i,1]
+        mu[i,7]<-u[7]+lam[5]*xi[i,1]
+        mu[i,8]<-u[8]+xi[i,2]
+        mu[i,9]<-u[9]+lam[6]*xi[i,2]
+        mu[i,10]<-u[10]+lam[7]*xi[i,2]
+
+        #structural equation
+        eta[i]~dnorm(nu[i], psd)
+	
+        nu[i]<-b*z[i]+gam[1]*xi[i,1]+gam[2]*xi[i,2]+gam[3]*xi[i,1]*xi[i,2]
+               +gam[4]*xi[i,1]*xi[i,1]+gam[5]*xi[i,2]*xi[i,2]
+			
+        xi[i,1:2]~dmnorm(zero[1:2], phi[1:2,1:2])
+    }	#end of i	
+
+    #prior distribution
+    lam[1]~dnorm(0.9,psi[2])    lam[2]~dnorm(0.7,psi[3])	
+    lam[3]~dnorm(0.9,psi[5])    lam[4]~dnorm(0.7,psi[6])
+    lam[5]~dnorm(0.5,psi[7])    lam[6]~dnorm(0.9,psi[9])
+    lam[7]~dnorm(0.7,psi[10])
+	
+    b~dnorm(0.5, psd)           gam[1]~dnorm(0.4,psd)
+    gam[2]~dnorm(0.4,psd)       gam[3]~dnorm(0.3,psd)
+    gam[4]~dnorm(0.2,psd)       gam[5]~dnorm(0.5,psd)
+		
+    for (j in 1:10) {
+        psi[j]~dgamma(9,4)     sgm[j]<-1/psi[j]
+        u[j]~dnorm(0,1)
+    }
+		
+    psd~dgamma(9,4)    sgd<-1/psd
+		
+    phi[1:2,1:2]~dwish(R[1:2,1:2], 4)
+    phx[1:2,1:2]<-inverse(phi[1:2,1:2])
+} #end of model

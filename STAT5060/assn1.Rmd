@@ -1,0 +1,311 @@
+---
+title: "assn1"
+output: pdf_document
+date: "2023-10-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Question1
+## (a)
+
+```{r}
+set.seed(42)  # Set a seed for reproducibility
+
+# Function to generate data
+generate_data <- function(n, beta, mu, sigma) {
+  # Generate predictor variable xi1
+  xi1 <- runif(n, 0, 1)
+  
+  # Generate predictor variables xi2 and xi3 from a bivariate normal distribution
+  xi23 <- MASS::mvrnorm(n, mu, sigma)
+  xi2 <- xi23[, 1]
+  xi3 <- xi23[, 2]
+  
+  # Calculate the mean mu_i for each observation
+  mu_i <- exp(beta[1] + beta[2] * xi1 + beta[3] * xi2 + beta[4] * xi3)
+  
+  # Generate the response variable yi from a Poisson distribution
+  yi <- stats::rpois(n, mu_i)
+  
+  # Return the generated data as a data frame
+  data.frame(yi, xi1, xi2, xi3)
+}
+```
+
+## (b)
+```{r}
+# Function to estimate beta
+estimate_beta <- function(data) {
+  model <- stats::glm(yi ~ xi1 + xi2 + xi3, data = data, family = stats::poisson)
+  coef(model)
+}
+
+# Function to calculate bias and RMS
+calculate_bias_rms <- function(estimates, true_beta) {
+  S <- nrow(estimates)
+  bias <- colMeans(estimates) - true_beta
+  rms <- sqrt(colMeans((estimates - true_beta)^2))
+  list(bias = bias, rms = rms)
+}
+
+# Set the parameters
+n <- 400  # Sample size
+beta_true <- c(1, -1, 0.5, 1)
+mu <- c(1, 1)
+sigma <- matrix(c(1, 0.2, 0.2, 1), nrow = 2, ncol = 2)
+```
+
+## (c)
+```{r}
+# Perform the simulation
+num_simulations <- 10
+estimates <- matrix(NA, nrow = num_simulations, ncol = 4)
+
+for (i in 1:num_simulations) {
+  # Generate data
+  data <- generate_data(n, beta_true, mu, sigma)
+  
+  # Estimate beta
+  estimates[i, ] <- estimate_beta(data)
+}
+
+# Calculate bias and RMS
+results <- calculate_bias_rms(estimates, beta_true)
+
+# Print the bias and RMS
+print(results$bias)
+print(results$rms)
+```
+
+# Question2
+```{r}
+library(nnet)
+
+set.seed(1)  # Set seed for reproducibility
+
+n <- 800
+
+# Generate predictors xi1 and xi2
+xi1 <- runif(n, 0, 1)
+xi2 <- rnorm(n, 0, 1)
+
+# Calculate the probabilities πij
+logit_pi <- matrix(0, nrow = n, ncol = 4)
+pi <- matrix(0, nrow = n, ncol = 4)
+yi <- rep(NA, n)
+
+for (i in 1:n) {
+  x <- c(1, xi1[i], xi2[i])
+  logit_pi[i, 1] <- sum(x * c(-1, 1, -1))
+  logit_pi[i, 2] <- sum(x * c(-1, -1, 1))
+  logit_pi[i, 3] <- sum(x * c(1, -1, 1))
+  logit_pi[i, 4] <- 0
+  
+  pi[i, ] <- exp(logit_pi[i, ]) / sum(exp(logit_pi[i, ]))
+  
+  yi[i] <- sample(1:4, 1, prob = pi[i, ])
+}
+
+# Create a data frame with the generated data
+data <- data.frame(y=yi, x0=1, x1=xi1, x2=xi2)
+```
+
+## (b)
+```{r}
+data$y <- relevel(factor(data$y), ref = 4)
+model2 = multinom(y ~ 1 + x1 + x2, data = data)
+coef(model2)
+```
+## (c)
+```{r}
+beta_est = list()
+for (k in 1:10){
+  n <- 800
+  # Generate predictors xi1 and xi2
+  xi1 <- runif(n, 0, 1)
+  xi2 <- rnorm(n, 0, 1)
+  
+  # Calculate the probabilities πij
+  logit_pi <- matrix(0, nrow = n, ncol = 4)
+  pi <- matrix(0, nrow = n, ncol = 4)
+  yi <- rep(NA, n)
+  
+  for (i in 1:n) {
+    x <- c(1, xi1[i], xi2[i])
+    logit_pi[i, 1] <- sum(x * c(-1, 1, -1))
+    logit_pi[i, 2] <- sum(x * c(-1, -1, 1))
+    logit_pi[i, 3] <- sum(x * c(1, -1, 1))
+    logit_pi[i, 4] <- 0
+    
+    pi[i, ] <- exp(logit_pi[i, ]) / sum(exp(logit_pi[i, ]))
+    
+    yi[i] <- sample(1:4, 1, prob = pi[i, ])
+  }
+  
+  # Create a data frame with the generated data
+  data <- data.frame(y=yi, x0=1, x1=xi1, x2=xi2)
+  
+  data$y <- relevel(factor(data$y), ref = 4)
+  model2 = multinom(y ~ 1 + x1 + x2, data = data)
+  beta_est[[k]] = coef(model2)
+}
+
+beta_est_flat = matrix(NA, nrow = 10, ncol = 9)
+for (i in 1:10){
+  beta_est_flat[i, ] = c(beta_est[[i]])
+}
+
+true_beta = c(-1, 1, -1, -1, -1, 1, 1, -1, 1)
+calculate_bias_rms <- function(estimates, true_beta) {
+  S <- nrow(estimates)
+  bias <- colMeans(estimates) - true_beta
+  rms <- sqrt(colMeans((estimates - true_beta)^2))
+  list(bias = bias, rms = rms)
+}
+
+calculate_bias_rms(beta_est_flat, true_beta)
+```
+
+# Question3
+## (a)
+```{r}
+set.seed(123)  # Set a seed for reproducibility
+
+# Set the parameters and variables
+n <- 800  # Number of subjects
+t <- 4    # Number of time points
+beta <- c(-0.7, 0.4, -0.5)  # True values of regression coefficients
+sigma <- 1  # True value of subject-specific random effect variance
+
+# Generate subject-specific random effects
+u <- rnorm(n, mean = 0, sd = sqrt(sigma))
+
+# Generate covariates and outcomes
+data <- data.frame()
+for (i in 1:n) {
+  for (t in 1:t) {
+    # Generate covariates
+    xit1 <- rbinom(1, size = 1, prob = 0.7)
+    xit2 <- rnorm(1, mean = 0, sd = 1)
+    
+    # Calculate the logit of the probability
+    logit_pi <- beta[1] + beta[2]*xit1 + beta[3]*xit2 + u[i]
+    
+    # Calculate the probability of success
+    pi <- exp(logit_pi) / (1 + exp(logit_pi))
+    
+    # Generate the binary outcome
+    yit <- rbinom(1, size = 1, prob = pi)
+    
+    # Add the data to the dataframe
+    data <- rbind(data, data.frame(subject = i, time = t, y = yit, x1 = xit1, x2 = xit2))
+  }
+}
+```
+```{r}
+library(lme4)
+generate_q3_data = function(){
+  # Set the parameters and variables
+  n <- 800  # Number of subjects
+  t <- 4    # Number of time points
+  beta <- c(-0.7, 0.4, -0.5)  # True values of regression coefficients
+  sigma <- 1  # True value of subject-specific random effect variance
+  
+  # Generate subject-specific random effects
+  u <- rnorm(n, mean = 0, sd = sqrt(sigma))
+  
+  # Generate covariates and outcomes
+  data <- data.frame()
+  for (i in 1:n) {
+    for (t in 1:t) {
+      # Generate covariates
+      xit1 <- rbinom(1, size = 1, prob = 0.7)
+      xit2 <- rnorm(1, mean = 0, sd = 1)
+      
+      # Calculate the logit of the probability
+      logit_pi <- beta[1] + beta[2]*xit1 + beta[3]*xit2 + u[i]
+      
+      # Calculate the probability of success
+      pi <- exp(logit_pi) / (1 + exp(logit_pi))
+      
+      # Generate the binary outcome
+      yit <- rbinom(1, size = 1, prob = pi)
+      
+      # Add the data to the dataframe
+      data <- rbind(data, data.frame(subject = i, time = t, y = yit, x1 = xit1, x2 = xit2))
+    }
+  }
+      return(data)
+}
+```
+
+## (b)
+```{r}
+estimate_q3_beta = function(data){
+  model3 <- glmer(y ~ 1 + x1 + x2 + (1 | subject), data = data, family = binomial())
+  return(model3)
+}
+data = generate_q3_data()
+model3 = estimate_q3_beta(data)
+beta_est = fixef(model3)
+
+```
+## (c)
+```{r}
+# Initialize matrices to store parameter estimates
+beta_estimates <- matrix(0, nrow = 10, ncol = 3)
+sigma_estimates <- rep(0, 10)
+
+# Repeat for 10 times
+for (k in 1:10) {
+  # Fit the model and estimate beta
+  data <- generate_q3_data()
+  model3 <- estimate_q3_beta(data)
+  beta_estimates[k, ] <- fixef(model3)
+  
+  # Estimate sigma^2
+  sigma_estimates[k] <-  sqrt(as.numeric(VarCorr(model3)$subject[1]))
+}
+
+# Calculate bias and RMSE for beta estimates
+beta_bias <- colMeans(beta_estimates) - beta
+beta_rmse <- sqrt(colMeans((beta_estimates - beta)^2))
+
+# Calculate bias and RMSE for sigma^2 estimates
+sigma_bias <- mean(sigma_estimates) - sigma
+sigma_rmse <- sqrt(mean((sigma_estimates - sigma)^2))
+
+# Print bias and RMSE for beta estimates
+cat("Bias (beta):", beta_bias, "\n")
+cat("RMSE (beta):", beta_rmse, "\n")
+
+# Print bias and RMSE for sigma^2 estimate
+cat("Bias (sigma^2):", sigma_bias, "\n")
+cat("RMSE (sigma^2):", sigma_rmse, "\n")
+```
+
+# Question4
+```{r}
+library(CatDataAnalysis)
+library(ordinal)
+library(brms)
+
+data(table_12.3)
+data = table_12.3
+
+# With the random intercept
+model4 = brm(outcome ~ occasion + treat + I(occasion * treat) + (1|case), family=brmsfamily("cumulative", "logit"), core=4, data = data)
+beta_est = rbind(summary(model4)$random$case, summary(model4)$fixed)
+beta_est
+```
+
+```{r}
+# Without the random intercept
+model4alt = brm(outcome ~ occasion + treat + I(occasion * treat), family=brmsfamily("cumulative", "logit"), core=4, data = data)
+beta_est_alt = summary(model4alt)$fixed
+beta_est_alt
+```
+The interaction coefficient $\beta_3=-1.10$ of the model with random intercept shows a stronger evidence of interaction than the model without random intercept, in which the interaction coefficient $\beta_3=-0.71$. In addition, the absolute values of other coeffcients become larger after introducing the random intercept term $u_i$. 

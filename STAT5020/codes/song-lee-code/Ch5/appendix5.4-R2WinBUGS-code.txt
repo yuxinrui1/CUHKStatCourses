@@ -1,0 +1,122 @@
+library(MASS)      #Load the MASS package
+library(R2WinBUGS) #Load the R2WinBUGS package
+library(boa)       #Load the boa package
+
+N<-2000; P<-9
+
+phi<-matrix(data=c(1.0,0.3,0.3,1.0),ncol=2) #The covariance matrix of xi
+Ro<-matrix(data=c(7.0,2.1,2.1,7.0), ncol=2)
+yo<-matrix(data=NA,nrow=N,ncol=P) p<-numeric(P); v<-numeric(P)
+
+#Matrices save the Bayesian Estimates and Standard Errors
+Eu<-matrix(data=NA,nrow=100,ncol=9)
+SEu<-matrix(data=NA,nrow=100,ncol=9)
+Elam<-matrix(data=NA,nrow=100,ncol=6)
+SElam<-matrix(data=NA,nrow=100,ncol=6)
+Egam<-matrix(data=NA,nrow=100,ncol=3)
+SEgam<-matrix(data=NA,nrow=100,ncol=3)
+Ephx<-matrix(data=NA,nrow=100,ncol=3)
+SEphx<-matrix(data=NA,nrow=100,ncol=3)
+Eb<-numeric(100); SEb<-numeric(100)
+Esgd<-numeric(100); SEsgd<-numeric(100)
+
+#Arrays save the HPD intervals
+uby=array(NA, c(100,9,2))
+ubeta=array(NA, c(100,2))
+lam=array(NA, c(100,6,2))
+gam=array(NA, c(100,3,2))
+sgd=array(NA, c(100,2))
+phx=array(NA, c(100,3,2))
+
+DIC=numeric(100)    #DIC values
+
+#Parameters to be estimated
+parameters<-c("uby","ubeta","lam","gam","sgd","phx")
+
+#Initial values for the MCMC in WinBUGS
+init1<-list(uby=rep(1.0,9),ubeta=0.8,lam=c(0.7,0.7,0.8,0.8,0.7,0.7),
+gam=c(0.6,0.6,0.8),psd=3.33,phi=matrix(data=c(1.0989,-0.3267,-0.3267,
+1.0989),ncol=2,byrow=TRUE), xi=matrix(data=rep(0.0,4000),ncol=2))
+
+init2<-list(uby=rep(1.0,9),ubeta=1.0,lam=rep(1.0,6),gam=(1.0,3),
+psd=3.0,phi=matrix(data=c(1.0,0.0,0.0,1.0),ncol=2,byrow=TRUE),
+xi=matrix(data=rep(0.0,4000),ncol=2))
+
+inits<-list(init1, init2)
+
+#Do simulation for 100 replications
+for (t in 1:100) {
+    #Generate the data for the simulation study
+    for (i in 1:N) {
+        #Generate xi
+        xi<-mvrnorm(1,mu=c(0,0),phi)
+        #Generate the fixed covariates
+        co<-rnorm(1,0,1)
+        #Generate error term is structural equation
+        delta<-rnorm(1,0,sqrt(0.3))
+        #Generate eta according to the structural equation
+        eta<-0.8*co[i]+0.6*xi[1]+0.6*xi[2]+0.8*xi[1]*xi[2]+delta
+        #Generate error terms in measurement equations
+        eps<-rnorm(3,0,1)
+
+        #Generate theta according to measurement equations
+        v[1]<-1.0+eta+eps[1]; v[2]<-1.0+0.7*eta+eps[2]
+        v[3]<-1.0+0.7*eta+eps[3]
+        v[4]<-1.0+xi[1]; v[5]<-1.0+0.8*xi[1]; v[6]<-1.0+0.8*xi[1]
+        v[7]<-1.0+xi[2]; v[8]<-1.0+0.7*xi[2]; v[9]<-1.0+0.7*xi[2]
+
+        #transform theta to orinal variables
+        for (j in 1:3) { if (v[j]>0) yo[i,j]<-1 else yo[i,j]<-0 }
+
+        #transform theta to binary variables
+        for (j in 4:9) {
+            p[j]<-exp(v[j])/(1+exp(v[j]))
+            yo[i,j]<-rbinom(1,1,p[j])
+        }
+    }
+
+    #Input data set for WinBUGS
+    data<-list(N=2000,P=9,R=Ro,z=yo,c=co,low=c(-2000,0),high=c(0,2000))
+
+    #Call WinBUGS
+    model<-bugs(data,inits,parameters,model.file="D:/Run/model.txt",
+    n.chains=2,n.iter=35000,n.burnin=15000,n.thin=1,DIC=True,
+    bugs.directory="c:/Program Files/WinBUGS14/",
+    working.directory="D:/Run/")
+
+    #Save Bayesian Estimates
+    Eu[t,]<-model$mean$uby; Elam[t,]<-model$mean$lam;
+    Egam[t,]<-model$mean$gam
+    Ephx[t,1]<-model$mean$phx[1,1]; Ephx[t,2]<-model$mean$phx[1,2]
+    Ephx[t,3]<-model$mean$phx[2,2]; Eb[t]<-model$mean$ubeta
+    Esgd[t]<-model$mean$sgd
+
+    #Save Standard Errors
+    SEu[t,]<-model$sd$uby; SElam[t,]<-model$sd$lam;
+    SEgam[t,]<-model$sd$gam
+    SEphx[t,1]<-model$sd$phx[1,1]; SEphx[t,2]<-model$sd$phx[1,2]
+    SEphx[t,3]<-model$sd$phx[2,2]; SEb[t]<-model$sd$ubeta
+    SEsgd[t]<-model$sd$sgd
+
+    #Save HPD intervals
+    for (i in 1:9) {
+        temp=model$sims.array[,1,i];
+        uby[t,i,]=boa.hpd(temp,0.05)
+    }
+    temp=model$sims.array[,1,10]; ubeta[t,]=boa.hpd(temp,0.05)
+    for (i in 1:6) {
+        temp=model$sims.array[,1,10+i];
+        lam[t,i,]=boa.hpd(temp,0.05)
+    }
+    for (i in 1:3) {
+        temp=model$sims.array[,1,16+i];
+        gam[t,i,]=boa.hpd(temp,0.05)
+    }
+    temp=model$sims.array[,1,20]; sgd[t,]=boa.hpd(temp,0.05)
+    temp=model$sims.array[,1,21]; phx[t,1,]=boa.hpd(temp,0.05)
+    temp=model$sims.array[,1,22]; phx[t,2,]=boa.hpd(temp,0.05)
+    temp=model$sims.array[,1,24]; phx[t,3,]=boa.hpd(temp,0.05)
+
+    #Save DIC value
+    DIC[t]=model#DIC
+}   #end

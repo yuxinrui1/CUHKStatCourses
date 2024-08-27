@@ -1,0 +1,626 @@
+# Homework2
+
+## Question1
+
+### a. Set true values for the model parameters. Generate data from the model and conduct Bayesian analysis on the basis of 10 replication. (using stan package)
+
+$\begin{gathered}{\left[\begin{array}{l}y_{i 1} \\ y_{i 2} \\ y_{i 3} \\ y_{i 4} \\ y_{i 5} \\ y_{i 6} \\ y_{i 7} \\ y_{i 8} \\ y_{i 9}\end{array}\right]=\left[\begin{array}{ll}\mu_1 & a_1 \\ \mu_2 & a_2 \\ \mu_3 & a_3 \\ \mu_4 & a_4 \\ \mu_5 & a_5 \\ \mu_6 & a_6 \\ \mu_7 & a_7 \\ \mu_8 & a_8 \\ \mu_9 & a_9\end{array}\right]\left[\begin{array}{c}1 \\ c_i\end{array}\right]+\left[\begin{array}{ccc}1 & 0 & 0 \\ \lambda_{21} & 0 & 0 \\ \lambda_{31} & 0 & 0 \\ 0 & 1 & 0 \\ 0 & \lambda_{52} & 0 \\ 0 & \lambda_{62} & 0 \\ 0 & 0 & 1 \\ 0 & 0 & \lambda_{83} \\ 0 & 0 & \lambda_{93}\end{array}\right]\left[\begin{array}{c}\eta_i \\ \xi_{i 1} \\ \xi_{i 2}\end{array}\right]+\left[\begin{array}{c}\varepsilon_{i 1} \\ \varepsilon_{i 2} \\ \varepsilon_{i 3} \\ \varepsilon_{i 4} \\ \varepsilon_{i 5} \\ \varepsilon_{i 6} \\ \varepsilon_{i 7} \\ \varepsilon_{i 8} \\ \varepsilon_{i 9}\end{array}\right]} \\ \eta_i=b d_i+\left[\begin{array}{lll}\gamma_1 & \gamma_2 & \gamma_3 &\gamma_4\end{array}\right]\left[\begin{array}{c}\xi_{i 1} \\ \xi_{i 2} \\ \xi_{i 1} \xi_{i 2} \\ \xi_{i 2}^2\end{array}\right]+\delta_i\end{gathered}$
+
+#### Generate Simulated Data
+
+```{r}
+library(rstan)
+
+# Set true values for the model parameters
+mu <- c(3.0, 1.5, 2.0, 1.0, 2.5, 1.8, 3.2, 2.3, 2.8)
+a <- c(0.8, 0.6, 0.7, 0.5, 0.9, 0.8, 1.0, 0.9, 0.7)
+lambda <- c(0.6, 0.7, 0.4, 0.5, 0.8, 0.6)
+b <- 1.2
+gamma <- c(0.4, 0.6, 0.2, 0.3)
+
+
+# Replicate the analysis 10 times
+num_replications <- 10
+fits <- list()
+
+for (i in 1:num_replications) {
+  # Run Stan model
+  # Generate data from the model
+  set.seed(123)
+  N <- 500
+  C <- rnorm(N)
+  D <- rnorm(N)
+  xi1 <- rnorm(N)
+  xi2 <- rnorm(N)
+  eta <- b * D + gamma[1] * xi1 + gamma[2] * xi2 + gamma[3] * xi1 * xi2 + gamma[4] * xi2^2 + rnorm(N)
+  Y <- matrix(0, nrow = N, ncol = 9)
+  Y[, 1] = mu[1] + a[1] * C + eta + rnorm(N, sd = 0.1)
+  Y[, 4] = mu[4] + a[4] * C + xi1 + rnorm(N, sd = 0.1)
+  Y[, 7] = mu[7] + a[7] * C + xi2 + rnorm(N, sd = 0.1)
+  for (i in 1:9) {
+    if (i %in% c(2, 3)) {
+      Y[, i] <- mu[i] + a[i] * C + lambda[i - 1] * eta + rnorm(N, sd = 0.1)
+    } else if (i %in% c(5, 6)) {
+      Y[, i] <- mu[i] + a[i] * C + lambda[i - 2] * xi1 + rnorm(N, sd = 0.1)
+    } else if (i %in% c(8, 9)) {
+      Y[, i] <- mu[i] + a[i] * C + lambda[i - 3] * xi2 + rnorm(N, sd = 0.1)
+    }
+  }
+  
+  # Prepare data for Stan
+  data <- list(N = N, Y = Y, C = C, D = D, xi1 = xi1, xi2 = xi2, eta = eta)
+
+  fits[[i]] <- stan(file = "HW2m1.stan", data = data, iter = 2000, chains = 4, cores = 4)
+  
+  # Print summary of the model
+  print(paste("Replication", i))
+  print(fits[[i]])
+}
+```
+
+### b. Demonstrate how to check convergence of the model.
+
+1.  Check the Rhat of the 10 replications. If Rhat is close to 1, then the model converges well, otherwise it does not converge. In the following 10 replications, all estimations converge with Rhat close to 1.
+2.  Check the estimation process plot of chains. If different chains meet together as the iteration number grows, the model converges.
+
+```{r}
+# Check Rhat values
+rhat_values <- sapply(fits, function(x) summary(x)$summary[, "Rhat"])
+print("Rhat values:")
+print(rhat_values)
+```
+```{r}
+```
+
+```{r}
+library(bayesplot)
+library(ggplot2) # For using coord_cartesian
+
+# Set color scheme
+color_scheme_set("brightblue")
+
+# Generate the trace plot
+p1 <- mcmc_trace(as.array(fits[[1]]), 
+                pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]"))
+
+# Adjust x and y axis limits
+p1 <- p1 + coord_cartesian(ylim = c(0,5))
+
+# Generate the trace plot
+p2 <- mcmc_trace(as.array(fits[[1]]), 
+                pars = c("gamma[1]", "gamma[2]", "gamma[3]", "gamma[4]"))
+
+# Adjust x and y axis limits
+p2 <- p2 + coord_cartesian(ylim = c(0,1))
+
+
+# Display the plot
+print(p1)
+print(p2)
+```
+
+### c. Use Bias and RMSE to summarize the estimation results.
+
+```{r}
+# ... (previous code remains the same)
+
+# Extract the posterior means of the parameters for each replication
+parameter_names <- c("mu", "a", "lambda", "b", "gamma", "sigma_eta", "sigma_eps")
+posterior_means <- lapply(fits, function(x) {
+  summary_params <- summary(x, pars = parameter_names, probs = c(0.5))$summary
+  posterior_means <- summary_params[, "mean"]
+  names(posterior_means) <- rownames(summary_params)
+  return(posterior_means)
+})
+
+# Calculate the mean of the posterior means among replications
+mean_posterior_means <- Reduce("+", posterior_means) / length(posterior_means)
+
+# Calculate the bias from mean_posterior_means
+true_values <- list(mu = mu, a = a, lambda = lambda, b = b, gamma = gamma)
+bias <- lapply(names(true_values), function(param) {
+  true_val <- true_values[[param]]
+  estimated_val <- mean_posterior_means[startsWith(names(mean_posterior_means), param)]
+  if (length(estimated_val) > 1) {
+    bias <- estimated_val - true_val
+  } else {
+    bias <- estimated_val - true_val
+  }
+  names(bias) <- paste0(param, "_bias")
+  return(bias)
+})
+bias <- unlist(bias)
+
+# Print the mean of the posterior means among replications
+cat("Mean of Posterior Means:\n")
+print(mean_posterior_means)
+cat("\n")
+
+# Print the bias for each parameter
+cat("Bias:\n")
+print(bias)
+```
+
+```{r}
+rmse <- sapply(names(true_values), function(param) {
+  true_val <- true_values[[param]]
+  estimated_val <- sapply(posterior_means, function(x) x[startsWith(names(x), param)])
+  rmse <- sqrt(mean((estimated_val - true_val)^2))
+  return(rmse)
+})
+
+cat("RMSE:\n")
+print(rmse)
+```
+
+The RMSE and bias of the 10 estimation indicate that the estimation is good.
+
+### d. Show your prior inputs and check whether the Bayesian analysis is sensitive to the inputs.
+
+My prior inputs are as follows:
+
+      mu ~ normal(0, 5);
+      a ~ normal(0, 5);
+      lambda ~ normal(0, 5);
+      b ~ normal(0, 5);
+      gamma ~ normal(0, 5);
+      sigma_eta ~ cauchy(0, 5);
+      sigma_eps ~ cauchy(0, 5);
+
+To check whether the Bayesian analysis is sensitive to the inputs, we modify the prior inputs to:
+
+      mu ~ normal(10, 5);
+      a ~ normal(10, 5);
+      lambda ~ normal(10, 5);
+      b ~ normal(10, 5);
+      gamma ~ normal(10, 5);
+      sigma_eta ~ cauchy(10, 5);
+      sigma_eps ~ cauchy(10, 5);
+
+```{r}
+for (i in 1:num_replications) {
+  # Run Stan model
+  fits[[i]] <- stan(file = "HW2m2.stan", data = data, iter = 2000, chains = 4, cores = 4)
+  
+}
+```
+
+```{r}
+# Check Rhat values
+rhat_values <- sapply(fits, function(x) summary(x)$summary[, "Rhat"])
+print("Rhat values:")
+print(rhat_values)
+```
+
+```{r}
+parameter_names <- c("mu", "a", "lambda", "b", "gamma", "sigma_eta", "sigma_eps")
+posterior_means <- lapply(fits, function(x) {
+  summary_params <- summary(x, pars = parameter_names, probs = c(0.5))$summary
+  posterior_means <- summary_params[, "mean"]
+  names(posterior_means) <- rownames(summary_params)
+  return(posterior_means)
+})
+
+# Calculate the mean of the posterior means among replications
+mean_posterior_means <- Reduce("+", posterior_means) / length(posterior_means)
+
+# Calculate the bias from mean_posterior_means
+true_values <- list(mu = mu, a = a, lambda = lambda, b = b, gamma = gamma)
+bias <- lapply(names(true_values), function(param) {
+  true_val <- true_values[[param]]
+  estimated_val <- mean_posterior_means[startsWith(names(mean_posterior_means), param)]
+  if (length(estimated_val) > 1) {
+    bias <- estimated_val - true_val
+  } else {
+    bias <- estimated_val - true_val
+  }
+  names(bias) <- paste0(param, "_bias")
+  return(bias)
+})
+bias <- unlist(bias)
+
+# Print the mean of the posterior means among replications
+cat("Mean of Posterior Means:\n")
+print(mean_posterior_means)
+cat("\n")
+
+# Print the bias for each parameter
+cat("Bias:\n")
+print(bias)
+```
+
+```{r}
+rmse <- sapply(names(true_values), function(param) {
+  true_val <- true_values[[param]]
+  estimated_val <- sapply(posterior_means, function(x) x[startsWith(names(x), param)])
+  rmse <- sqrt(mean((estimated_val - true_val)^2))
+  return(rmse)
+})
+
+cat("RMSE:\n")
+print(rmse)
+```
+
+From the Rhat, bias, and RMSE of the estimation, we can conclude that the convergence and estimation precision are not affected by the different prior setting.
+
+## Question2
+
+### a. Compare the non-linear SEM in Q1 with its linear SEM counterpart.
+
+#### Construct the linear SEM model
+
+```{r}
+# Prepare data for Stan
+data <- list(N = N, Y = Y, C = C, D = D, xi1 = xi1, xi2 = xi2, eta = eta)
+
+# Replicate the analysis 10 times
+num_replications <- 10
+fits <- list()
+
+for (i in 1:num_replications) {
+  # Run Stan model
+  fits[[i]] <- stan(file = "HW2m3.stan", data = data, iter = 2000, chains = 4, cores = 4)
+  
+  # Print summary of the model
+  print(paste("Replication", i))
+  print(fits[[i]])
+}
+```
+
+```{r}
+parameter_names <- c("mu", "a", "lambda", "b", "gamma", "sigma_eta", "sigma_eps")
+posterior_means <- lapply(fits, function(x) {
+  summary_params <- summary(x, pars = parameter_names, probs = c(0.5))$summary
+  posterior_means <- summary_params[, "mean"]
+  names(posterior_means) <- rownames(summary_params)
+  return(posterior_means)
+})
+
+# Calculate the mean of the posterior means among replications
+mean_posterior_means <- Reduce("+", posterior_means) / length(posterior_means)
+
+# Calculate the bias from mean_posterior_means
+true_values <- list(mu = mu, a = a, lambda = lambda, b = b, gamma = gamma)
+bias <- lapply(names(true_values), function(param) {
+  true_val <- true_values[[param]]
+  estimated_val <- mean_posterior_means[startsWith(names(mean_posterior_means), param)]
+  if (length(estimated_val) > 1) {
+    bias <- estimated_val - true_val
+  } else {
+    bias <- estimated_val - true_val
+  }
+  names(bias) <- paste0(param, "_bias")
+  return(bias)
+})
+bias <- unlist(bias)
+
+# Print the mean of the posterior means among replications
+cat("Mean of Posterior Means:\n")
+print(mean_posterior_means)
+cat("\n")
+
+# Print the bias for each parameter
+cat("Bias:\n")
+print(bias)
+rmse <- sapply(names(true_values), function(param) {
+  true_val <- true_values[[param]]
+  estimated_val <- sapply(posterior_means, function(x) x[startsWith(names(x), param)])
+  rmse <- sqrt(mean((estimated_val - true_val)^2))
+  return(rmse)
+})
+
+cat("RMSE:\n")
+print(rmse)
+```
+
+#### Compare Bayes factor and DIC
+
+We compare only one fitted model from non-linear case and linear case.
+
+```{r}
+library(loo) # For calculating DIC
+library(bridgesampling) # For calculating Bayes factor
+mu <- c(3.0, 1.5, 2.0, 1.0, 2.5, 1.8, 3.2, 2.3, 2.8)
+a <- c(0.8, 0.6, 0.7, 0.5, 0.9, 0.8, 1.0, 0.9, 0.7)
+lambda <- c(0.6, 0.7, 0.4, 0.5, 0.8, 0.6)
+b <- 1.2
+gamma <- c(0.4, 0.6, 1, 1)
+  # Run Stan model
+  # Generate data from the model
+  set.seed(123)
+  N <- 500
+  C <- rnorm(N)
+  D <- rnorm(N)
+  xi1 <- rnorm(N)
+  xi2 <- rnorm(N)
+  eta <- b * D + gamma[1] * xi1 + gamma[2] * xi2 + gamma[3] * xi1 * xi2 + gamma[4] * xi2^2 + rnorm(N)
+  Y <- matrix(0, nrow = N, ncol = 9)
+  Y[, 1] = mu[1] + a[1] * C + eta + rnorm(N, sd = 0.1)
+  Y[, 4] = mu[4] + a[4] * C + xi1 + rnorm(N, sd = 0.1)
+  Y[, 7] = mu[7] + a[7] * C + xi2 + rnorm(N, sd = 0.1)
+  for (i in 1:9) {
+    if (i %in% c(2, 3)) {
+      Y[, i] <- mu[i] + a[i] * C + lambda[i - 1] * eta + rnorm(N, sd = 0.1)
+    } else if (i %in% c(5, 6)) {
+      Y[, i] <- mu[i] + a[i] * C + lambda[i - 2] * xi1 + rnorm(N, sd = 0.1)
+    } else if (i %in% c(8, 9)) {
+      Y[, i] <- mu[i] + a[i] * C + lambda[i - 3] * xi2 + rnorm(N, sd = 0.1)
+    }
+  }
+  
+  # Prepare data for Stan
+  data <- list(N = N, Y = Y, C = C, D = D, xi1 = xi1, xi2 = xi2, eta = eta)
+
+  
+fit_linear = stan(file = "HW2m3.stan", data = data, iter = 2000, chains = 4, cores = 4)
+
+fit_nonlinear <- stan(file = "HW2m1.stan", data = data, iter = 2000, chains = 4, cores = 4)
+```
+
+```{r}
+bridge_linear <- bridge_sampler(fit_linear, silent=TRUE)
+bridge_nonlinear <- bridge_sampler(fit_nonlinear, silent=TRUE)
+print(bridge_linear)
+print(bridge_nonlinear)
+print(bf(bridge_nonlinear, bridge_linear))
+```
+
+This indicates that the Bayes factor is in favor of the original nonlinear model since the Bayes factor is pretty large. DIC can be calculated from the log likelihood.
+
+### b.Compare the non-linear SEM in Q1 with this new model.
+
+```{r}
+mu <- c(3.0, 1.5, 2.0, 1.0, 2.5, 1.8, 3.2, 2.3, 2.8)
+a <- c(0.8, 0.6, 0.7, 0.5, 0.9, 0.8, 1.0, 0.9, 0.7)
+lambda <- c(0.6, 0.7, 0.4, 0.5, 0.8, 0.6)
+b <- 1.2
+gamma <- c(0.4, 0.6, 1, 1)
+  # Run Stan model
+  # Generate data from the model
+  set.seed(123)
+  N <- 500
+  C <- rnorm(N)
+  D <- rnorm(N)
+  xi1 <- rnorm(N)
+  xi2 <- rnorm(N)
+  eta <- b * D + gamma[1] * xi1 + gamma[2] * xi2 + gamma[3] * xi1 * xi2 + gamma[4] * xi2^2 + rnorm(N)
+  Y <- matrix(0, nrow = N, ncol = 9)
+  Y[, 1] = mu[1] + a[1] * C + eta + rnorm(N, sd = 0.1)
+  Y[, 4] = mu[4] + a[4] * C + xi1 + rnorm(N, sd = 0.1)
+  Y[, 7] = mu[7] + a[7] * C + xi2 + rnorm(N, sd = 0.1)
+  for (i in 1:9) {
+    if (i %in% c(2, 3)) {
+      Y[, i] <- mu[i] + a[i] * C + lambda[i - 1] * eta + rnorm(N, sd = 0.1)
+    } else if (i %in% c(5, 6)) {
+      Y[, i] <- mu[i] + a[i] * C + lambda[i - 2] * xi1 + rnorm(N, sd = 0.1)
+    } else if (i %in% c(8, 9)) {
+      Y[, i] <- mu[i] + a[i] * C + lambda[i - 3] * xi2 + rnorm(N, sd = 0.1)
+    }
+  }
+  
+  # Prepare data for Stan
+  data <- list(N = N, Y = Y, C = C, D = D, xi1 = xi1, xi2 = xi2, eta = eta)
+
+  
+fit_q2 = stan(file = "HW2m4.stan", data = data, iter = 2000, chains = 4, cores = 4)
+
+fit_q1 <- stan(file = "HW2m1.stan", data = data, iter = 2000, chains = 4, cores = 4)
+```
+
+```{r}
+bridge_q1 <- bridge_sampler(fit_q1, silent=TRUE)
+bridge_q2 <- bridge_sampler(fit_q2, silent=TRUE)
+print(bridge_q1)
+print(bridge_q2)
+print(bf(bridge_q1, bridge_q2))
+```
+
+The Bayes factor is 10.2. This indicates that the Bayes factor is in favor of the original nonlinear model since the Bayes factor is large. DIC can be calculated from the log likelihood. \## Question3
+
+```{r}
+library(tidyverse)
+library(faraway)
+library(rstan)
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+
+library(tidyverse)
+library(rstan)
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+
+rm(list = ls())
+# question 1 --------------------------------------------------------------
+
+R <- 10
+n <- 100
+
+b <- 0.2
+vec_lambda <- c(1, 0.7, 0.7, 1, 0.8, 0.8, 0.8, 1, 0.9)
+vec_gamma <- c(0.4, 0.5)
+mat_phi <- matrix(data = c(1, 0.2, 0.2, 0.81), ncol = 2)
+vec_psi_eps <- c(1, 1, 1, 0.36, 0.36, 0.25, 0.25)
+psi_delta <- 0.36
+
+
+# data generation ---------------------------------------------------------
+
+set.seed(128)
+mat_xi <- matrix(data = mvtnorm::rmvnorm(n, mean = rep(0, 2), sigma = mat_phi), 
+                 ncol = 2)
+vec_d <- rbinom(n, size = 1, prob = .7)
+
+vec_eta <- b * vec_d + mat_xi %*% vec_gamma + 
+  rnorm(n, mean = 0, sd = sqrt(psi_delta))
+
+# mat_y <- matrix(data = NA, nrow = n, ncol = 9)
+
+mat_ys <- matrix(rep(vec_lambda[1:3], each = n), ncol = 3) *
+  matrix(rep(vec_eta, 3), ncol = 3) + 
+  sapply(vec_psi_eps[1:3], 
+         function (var) rnorm(n, mean = 0, sd = sqrt(var)))
+
+mat_y1 <- sign(sign(mat_ys) + 1)
+
+mat_y2 <- matrix(rep(vec_lambda[4:7], each = n), ncol = 4) *
+  matrix(rep(mat_xi[, 1], 4), ncol = 4) + 
+  sapply(vec_psi_eps[4:7], 
+         function (var) rnorm(n, mean = 0, sd = sqrt(var)))
+
+mat_vart <- matrix(rep(vec_lambda[8:9], each = n), ncol = 2) *
+  matrix(rep(mat_xi[, 2], 2), ncol = 2)
+
+mat_y3 <- mat_vart %>% faraway::ilogit() %>% 
+  apply(c(1, 2), function(x) rbinom(1, 1, x))
+
+ls_dat1 <- list(N = n,
+                # y1 = mat_y1[, 1],
+                # y2 = mat_y1[, 2],
+                # y3 = mat_y1[, 3],
+                n1 = sum(mat_y1[, 1] == 1),
+                n2 = sum(mat_y1[, 2] == 1),
+                n3 = sum(mat_y1[, 3] == 1),
+                sub1 = which(mat_y1[, 1] == 1),
+                sub1c = which(mat_y1[, 1] == 0),
+                sub2 = which(mat_y1[, 2] == 1),
+                sub2c = which(mat_y1[, 2] == 0),
+                sub3 = which(mat_y1[, 3] == 1),
+                sub3c = which(mat_y1[, 3] == 0),
+                y4 = mat_y2[, 1], 
+                y5 = mat_y2[, 2],
+                y6 = mat_y2[, 3],
+                y7 = mat_y2[, 4], 
+                y8 = mat_y3[, 1],
+                y9 = mat_y3[, 2],
+                d = vec_d,
+                lw_bd = c(-Inf, 0),
+                up_bd = c(0, Inf)) 
+
+fit_m1 <- stan(
+  file = "HW2m5.stan",
+  data = ls_dat1,                   # named list of data
+  chains = 4,                       # number of Markov chains
+  iter = 2000                       # total number of iterations per chain
+)
+
+print(
+  fit_m1, 
+  pars = c('lp__', 'gam', 'b',
+         'lam2', 'lam3', 'lam5', 'lam6', 'lam7', 'lam9', 
+         'psi_e', 'psi_d', 'mat_phi'), 
+  probs=c(.05, .95)
+)
+```
+
+```{r}
+traceplot(
+  fit_m1, 
+  pars = c('lp__', 'gam', 'b',
+           'lam2', 'lam3', 'lam5', 'lam6', 'lam7', 'lam9', 
+           'psi_e', 'psi_d', 'mat_phi')
+)
+
+rstan::extract(
+  fit_m1, 
+  pars = c('gam', 'b',
+           'lam2', 'lam3', 'lam5', 'lam6', 'lam7', 'lam9', 
+           'psi_e', 'psi_d', 'mat_phi')
+) %>% as.data.frame() %>% sapply(mean)
+```
+
+```{r}
+rm(list = ls())
+
+## set parameters
+
+R <- 10
+n <- 100
+
+b <- 0.2
+vec_lambda <- c(1, 0.7, 0.7, 1, 0.8, 0.8, 0.8, 1, 0.9)
+vec_gamma <- c(0.4, 0.5)
+mat_phi <- matrix(data = c(1, 0.2, 0.2, 0.81), ncol = 2)
+vec_psi_eps <- c(1, 1, 1, 0.36, 0.36, 0.25, 0.25)
+psi_delta <- 0.36
+
+fun_sim <- function() {
+  mat_xi <- matrix(data = mvtnorm::rmvnorm(n, mean = rep(0, 2), sigma = mat_phi), 
+                   ncol = 2)
+  vec_d <- rbinom(n, size = 1, prob = .7)
+  
+  vec_eta <- b * vec_d + mat_xi %*% vec_gamma + 
+    rnorm(n, mean = 0, sd = sqrt(psi_delta))
+  
+  mat_ys <- matrix(rep(vec_lambda[1:3], each = n), ncol = 3) *
+    matrix(rep(vec_eta, 3), ncol = 3) + 
+    sapply(vec_psi_eps[1:3], 
+           function (var) rnorm(n, mean = 0, sd = sqrt(var)))
+  
+  mat_y1 <- sign(sign(mat_ys) + 1)
+  
+  mat_y2 <- matrix(rep(vec_lambda[4:7], each = n), ncol = 4) *
+    matrix(rep(mat_xi[, 1], 4), ncol = 4) + 
+    sapply(vec_psi_eps[4:7], 
+           function (var) rnorm(n, mean = 0, sd = sqrt(var)))
+  
+  mat_vart <- matrix(rep(vec_lambda[8:9], each = n), ncol = 2) *
+    matrix(rep(mat_xi[, 2], 2), ncol = 2)
+  
+  mat_y3 <- mat_vart %>% faraway::ilogit() %>% 
+    apply(c(1, 2), function(x) rbinom(1, 1, x))
+  
+  ls_dat1 <- list(N = n,
+                  n1 = sum(mat_y1[, 1] == 1),
+                  n2 = sum(mat_y1[, 2] == 1),
+                  n3 = sum(mat_y1[, 3] == 1),
+                  sub1 = which(mat_y1[, 1] == 1),
+                  sub1c = which(mat_y1[, 1] == 0),
+                  sub2 = which(mat_y1[, 2] == 1),
+                  sub2c = which(mat_y1[, 2] == 0),
+                  sub3 = which(mat_y1[, 3] == 1),
+                  sub3c = which(mat_y1[, 3] == 0),
+                  y4 = mat_y2[, 1], 
+                  y5 = mat_y2[, 2],
+                  y6 = mat_y2[, 3],
+                  y7 = mat_y2[, 4], 
+                  y8 = mat_y3[, 1],
+                  y9 = mat_y3[, 2],
+                  d = vec_d,
+                  lw_bd = c(-Inf, 0),
+                  up_bd = c(0, Inf)) 
+  
+  fit_m1 <- stan(
+    file = "HW2m5.stan",
+    data = ls_dat1,
+    chains = 4,
+    warmup = 1000,
+    iter = 2000
+  )
+  rstan::extract(
+    fit_m1, 
+    pars = c('gam', 'b', 'mu',
+             'lam2', 'lam3', 'lam5', 'lam6', 'lam7', 'lam9', 
+             'psi_e', 'psi_d', 'mat_phi')
+  ) %>% as.data.frame() %>% sapply(mean)
+}
+
+set.seed(128)
+mat_result <- replicate(10, fun_sim())
+
+mat_result
+```
+
+```{r}
+vec_par <- c(vec_gamma, b, rep(0, 9), vec_lambda[c(-1, -4, -8)], 
+             vec_psi_eps[-3:-1], psi_delta, as.vector(mat_phi))
+
+mat_bias_mse <- 
+  (mat_result - vec_par) %>% 
+  apply(1, function (vec) {
+    c(BIAS = mean(vec), 
+      MSE = sqrt(mean(vec^2)))
+  })
+mat_bias_mse
+```
+
+From the bias and RMSE of the estimation, we can conclude that the model estimation is robust to different simulated data.
